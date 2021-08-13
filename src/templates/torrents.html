@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+	<div class="col-4 heading"><h1>Torrents List</h1><p>Click a torrent to view its complete history.</p><p class="hideDeleteText">Hiding a torrent obscures its name and tracker in TorrentStats.
+		Deleting a torrent will delete it from the TorrentStats database.</p>
+	</div>
+	<div class="col-8 dt-button-header"></div>
+</div>
+<div class="row" id="torrentsTable">
+	<div class="col-12">
+		<table id="torrents_table" class="display nowrap" style="width:100%;">
+		<thead>
+			<tr>
+				<th class="hideMode"></th>
+				<th>Name</th>
+				<th>Size</th>
+				<th>Progress</th>
+				<th>Downloaded</th>
+				<th>Uploaded</th>
+				<th>Ratio</th>
+				<th>Tracker</th>
+				<th>Last Active</th>
+				<th>Client</th>
+				<th>Status</th>
+				<th>Directory</th>
+			</tr>
+		</thead>
+		</table>
+		<div id="torrent-modal" class="modal-background">
+			<div class="modal-content torrent-modal-content">
+				<div class="torrent-modal-header">
+					<span class="torrent-modal-close">&times;</span>
+					<h4>History</h4>
+				</div>
+				<div class="modal-body">
+					<table id="single_history_table" class="display nowrap" style="width:100%;">
+					<thead>
+						<tr>
+							<th>Date</th>
+							<th>Progress</th>
+							<th>Downloaded</th>
+							<th>Uploaded</th>
+							<th>Total Down</th>
+							<th>Total Up</th>
+							<th>Ratio</th>
+						</tr>
+					</thead>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='DataTables/datatables.min.js') }}"></script>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='DataTables/Plugins/percentageBars.js') }}"></script>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='js/index-torrents.js') }}"></script>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='js/torrents.js') }}"></script>
+{% endblock %}	
