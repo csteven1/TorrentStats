@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+	<div class="col-3 heading"><h1>Settings</h1></div>
+</div>
+<div class="row" style="border-top:1px solid #666666;">
+	<div class="settingsNav">
+		<a href="#general" id="generalNav">General</a>
+		<div style="height: 2px;background-image: linear-gradient(to right, black, white, black);"></div>
+		<a href="#clients" id="clientsNav">Clients</a>
+	</div>
+	<div class="col-1"></div>
+	<div class="col-11" style="border-left:2px solid red;">
+		<h2 id="general" style="padding-bottom:20px">General Settings</h2>
+		<div class="settingContainer settingRow1" style="margin-top:0;">
+			<div class="settingLabel">
+				<label for="localeSetting">Date Format:</label>
+			</div>
+			<div class="settingSelect">
+				<select name="localeSetting" id="localeSetting">
+					<option id="loadingLocale" value="">Loading</option>
+					<option value="en">MM/DD/YYYY</option>
+					<option value="en-gb">DD/MM/YYYY</option>
+				</select>
+			</div>
+		</div>
+		<div class="buttonBar">
+			<button class="settingButton" id="resetLocale">Reset to System Default</button><button class="settingButton" id="cancelLocale" disabled>Cancel</button><button class="settingButton" id="saveLocale" style="margin-right:0;" disabled>Apply</button>
+		</div>
+		<h2 style="margin-top:20px;padding-bottom:20px">Scheduled Tasks</h2>
+		<div class="settingContainer settingRow1" style="margin-top:0;">
+			<div class="settingLabel">
+				<label for="tCheckFrequency">Check for recent activity:</label>
+			</div>
+			<div class="settingSelect">
+				<select name="tCheckFrequency" id="tCheckFrequency">
+					<option value="5">Every 5 minutes</option>
+					<option value="10">Every 10 minutes</option>
+					<option value="15">Every 15 minutes</option>
+					<option value="30">Every 30 minutes</option>
+					<option value="60">Every hour</option>
+					<option value="180">Every 3 hours</option>
+					<option value="360">Every 6 hours</option>
+				</select>
+			</div>
+		</div>
+		<div class="settingContainer settingRow2">
+			<div class="settingLabel">
+				<label for="backupFrequency">Backup TorrentStats database:</label>
+			</div>
+			<div class="settingSelect">
+				<select name="backupFrequency" id="backupFrequency">
+					<option value="6">Every 6 hours</option>
+					<option value="12">Every 12 hours</option>
+					<option value="24">Every day</option>
+					<option value="48">Every 2 days</option>
+					<option value="72">Every 3 days</option>
+				</select>
+			</div>
+		</div>
+		<div class="settingContainer settingRow1">
+			<div class="settingLabel">
+				<label for="dCheckFrequency">Update torrent info <span class='torrentInfoTooltip'>&#9432;<span class='torrentInfoTTipText'><ul>
+					<li><span>Update status for torrents that have been deleted.</span></li>
+					<li><span>Update directories of torrents.</span></li>
+					<li style="margin-bottom: 3px;"><span>Add torrents that were missed in regular checks.</span></li>
+					</ul></span></span>: </label>
+			</div>
+			<div class="settingSelect">
+				<select name="dCheckFrequency" id="dCheckFrequency">
+					<option value="1">Every hour</option>
+					<option value="3">Every 3 hours</option>
+					<option value="6">Every 6 hours</option>
+					<option value="12">Every 12 hours</option>
+					<option value="24">Every day</option>
+				</select>
+			</div>
+		</div>
+		<div class="buttonBar">
+			<button class="settingButton" id="cancelTasks" disabled>Cancel</button><button class="settingButton" id="saveTasks" disabled>Apply</button>
+		</div>
+		<h2 style="margin-top:20px;padding-bottom:20px">Clients</h2>
+		<table id="clients_table" class="display" style="width:500px;">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Application</th>
+					<th>Address</th>
+					<th>Status</th>
+					<th></th>
+					<th></th>
+				</tr>
+			</thead>
+		</table>
+		<div class="buttonBar" style="margin-top: 20px;">
+			<button id="addClient">Add New Client</button>
+		</div>
+	</div>
+	<div class="col-12">
+		<div id="edit-client-modal" class="modal-background">
+			<div class="modal-content edit-client-modal-content">
+				<div class="edit-client-modal-header">
+					<span class="edit-client-modal-close">&times;</span>
+					<h4>Edit Client</h4>
+				</div>
+				<div class="modal-body">
+					<div class="editModal">
+						<div class="row-client-modal settingRow2" style="margin-top:15px;">
+							<div class="editLabel">
+								<label for="nickname">Nickname:</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="nickname" id="edit-nickname">
+							</div>
+						</div>
+						<div class="row-client-modal settingRow3">
+							<div class="editLabel">
+								<label for="ip">IP Address:</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="ip" id="edit-ip">
+							</div>
+						</div>
+						<div class="row-client-modal settingRow2">
+							<div class="editLabel">
+								<label for="username">Username:</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="username" id="edit-username">
+							</div>
+						</div>
+						<div class="row-client-modal settingRow3">
+							<div class="editLabel">
+								<label for="pass">Password:</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="pass" id="edit-pass">
+							</div>
+						</div>
+						<div class="modalButtonBar">
+							<button id="cancelEdit">Cancel</button><button id="saveEdit" style="margin-left:20px;">Save</button>
+						</div>
+						<div class="editVerif">
+							<p class="editVerifText">Verifying...</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div id="add-client-modal" class="modal-background">
+			<div class="modal-content add-client-modal-content">
+				<div class="add-client-modal-header">
+					<span class="add-client-modal-close">&times;</span>
+					<h4>Add Client</h4>
+				</div>
+				<div class="modal-body">
+					<div class="addPage1">
+						<div class="row-client-modal settingRow2" style="margin-top:15px;">
+							<div class="addLabel">
+								<label for="ip">IP Address:</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="ip" id="add-ip" placeholder="e.g. 127.0.0.1:9091">
+							</div>
+						</div>
+						<div class="row-client-modal settingRow1">
+							<div class="addLabel">
+								<label for="username">Username (if applicable):</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="username" id="add-username">
+							</div>
+						</div>
+						<div class="row-client-modal settingRow2">
+							<div class="addLabel">
+								<label for="pass">Password (if applicable):</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="pass" id="add-pass">
+							</div>
+						</div>
+						<div class="modalButtonBar">
+							<button id="cancelAdd">Cancel</button><button id="nextAdd" style="margin-left:20px;">Next <i class="arrow arrowRight"></i></button>
+						</div>
+						<div class="addVerif">
+							<p class="addVerifText">Verifying...</p>
+						</div>
+					</div>
+					<div class="addPage2">
+						<div class="row-client-modal">
+							<p>Application identified as '<span id="appName"></span>'. Change the nickname below to identify it throughout TorrentStats or keep the default. This can also be changed later</p>
+						</div>
+						<div class="row-client-modal settingRow2">
+							<div class="addLabel">
+								<label for="nickname">Nickname:</label>
+							</div>
+							<div class="addInput">
+								<input type="text" name="nickname" id="add-nickname">
+							</div>
+						</div>
+						<div class="modalButtonBar">
+							<button id="cancelAdd">Cancel</button><button id="backAdd" style="margin-left:20px;"><i class="arrow arrowLeft"></i> Back</button><button id="saveAdd" style="margin-left:20px;">Add Client</button>
+						</div>
+						<div class="addVerif2">
+							<p class="addVerifText2">Verifying...</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div id="notification">
+		<div class="notification-content">
+			<div class="notification-header">
+				<span class="notification-close">&times;</span>
+				<h4>Notification</h4>
+			</div>
+			<div class="notification-body">
+				<p id="notifText">Notification text</p>
+				<button id="closeNotif">OK</button>
+			</div>
+		</div>
+	</div>
+</div>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='DataTables/datatables.min.js') }}"></script>
+<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='js/settings.js') }}"></script>
+<script type="text/javascript">
+	initParams({{ preferences|tojson }});
+</script>
+{% endblock %}	

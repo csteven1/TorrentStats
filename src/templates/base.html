@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<head>
+		<title>{{ title }} - TorrentStats</title>
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='styles/torrentstats.css') }}"/>
+		<link rel="stylesheet" type="text/css" href="{{ url_for('static',filename='DataTables/datatables.css') }}"/>
+		<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700&display=swap" rel="stylesheet">
+	</head>
+	<body>
+		<div class="topnav">
+			<div class="logo">
+				<a href="#" id="logo"><img src="images/logo.png"></a>
+			</div>
+			<div class="nav-items" id="myNavbar">
+				<a href="{{ url_for('index') }}" id="aboutNav">Home</a>
+				<a href="{{ url_for('torrents') }}" id="aboutNav">Torrents</a>
+				<a href="{{ url_for('settings') }}" id="aboutNav">Settings</a>
+			</div>
+		</div>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+		<script>window.jQuery || document.write('<script src="{{ url_for('static', filename='js/jquery.js') }}">\x3C/script>')</script>
+		<script type=text/javascript>$SCRIPT_ROOT = {{ request.script_root|tojson|safe }};</script>
+		<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='js/moment-with-locales.min.js') }}"></script>
+		<script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='js/base.js') }}"></script>
+		<script type="text/javascript">
+			$(document).ready(function() {
+				moment.locale("{{ locale }}");
+			});
+		</script>
+		{% block content %}{% endblock %}
+	</body>
+</html>

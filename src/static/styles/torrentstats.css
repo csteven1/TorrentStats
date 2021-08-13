@@ -1,0 +1,678 @@
+* {
+	box-sizing: border-box;	
+	margin: 0;
+	font-family: 'Open Sans', Arial, sans-serif;
+}
+
+[class*="col-"] {
+	width: 100%;
+    float: left;
+    padding: 15px;
+    /*border: 1px solid red;*/
+}
+
+@media only screen and (min-width: 480px) {
+	.col-m-1 {width: 8.33%;}
+	.col-m-2 {width: 16.66%;}
+	.col-m-3 {width: 25%;}
+	.col-m-4 {width: 33.33%;}
+	.col-m-5 {width: 41.66%;}
+	.col-m-6 {width: 50%;}
+	.col-m-7 {width: 58.33%;}
+	.col-m-8 {width: 66.66%;}
+	.col-m-9 {width: 75%;}
+	.col-m-10 {width: 83.33%;}
+	.col-m-11 {width: 91.66%;}
+	.col-m-12 {width: 100%;}
+}
+
+@media only screen and (min-width: 768px) {
+	.col-1 {width: 8.33%;}
+	.col-2 {width: 16.66%;}
+	.col-3 {width: 25%;}
+	.col-4 {width: 33.33%;}
+	.col-5 {width: 41.66%;}
+	.col-6 {width: 50%;}
+	.col-7 {width: 58.33%;}
+	.col-8 {width: 66.66%;}
+	.col-9 {width: 75%;}
+	.col-10 {width: 83.33%;}
+	.col-11 {width: 91.66%;}
+	.col-12 {width: 100%;}
+}
+
+@media only screen and (min-width: 1092px) {
+	.col-l-1 {width: 8.33%;}
+	.col-l-2 {width: 16.66%;}
+	.col-l-3 {width: 25%;}
+	.col-l-4 {width: 33.33%;}
+	.col-l-5 {width: 41.66%;}
+	.col-l-6 {width: 50%;}
+	.col-l-7 {width: 58.33%;}
+	.col-l-8 {width: 66.66%;}
+	.col-l-9 {width: 75%;}
+	.col-l-10 {width: 83.33%;}
+	.col-l-11 {width: 91.66%;}
+	.col-l-12 {width: 100%;}
+}
+
+@media only screen and (min-width: 1330px) {
+	.col-xl-1 {width: 8.33%;}
+	.col-xl-2 {width: 16.66%;}
+	.col-xl-3 {width: 25%;}
+	.col-xl-4 {width: 33.33%;}
+	.col-xl-5 {width: 41.66%;}
+	.col-xl-6 {width: 50%;}
+	.col-xl-7 {width: 58.33%;}
+	.col-xl-8 {width: 66.66%;}
+	.col-xl-9 {width: 75%;}
+	.col-xl-10 {width: 83.33%;}
+	.col-xl-11 {width: 91.66%;}
+	.col-xl-12 {width: 100%;}
+}
+.row {
+	background-color: #595959;
+}
+.row::after {
+  content: "";
+  clear: both;
+  display: table;
+}
+
+.topnav {
+	background-color: #404040;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+.topnav a {
+    display: block;
+}
+
+.logo {
+	float: left;
+	margin:5px 0px 0px 15%;
+}
+
+.logo img {
+	height: 50px;
+	background-color: #404040;
+	width: auto;
+}
+
+.nav-items {
+	float: right;
+	/*padding-top: 115px;*/
+	padding-right: 15%;
+}
+
+.nav-items a {
+	float: left;
+	padding: 8px 15px;
+	margin-left: 70px;
+    background-color: #404040;
+    text-align: center;
+    text-decoration: none;
+    font-size: 25px;
+	/*transition: 0.5s;*/
+	color: #ffff4d;
+	border-radius: 20px 20px 0px 0px;
+}
+p {
+	font-size: 14px;
+	color: #e6e6e6;
+}
+h1, h2, h3, h4 {
+	color: #efef43;
+	font-weight: 600;
+}
+h2 {
+	font-size: 22px;
+}
+h3 {
+	font-size: 17px;
+}
+h4 {
+	font-size: 15px;
+}
+.graphOptions {
+	float: right;
+	padding-top: 5px;
+}
+.graphOptions select, .graphOptions input {
+	float: left;
+	margin: 1px 20px 0 5px;
+	border: 0;
+}
+.graphOptions input {
+	width: 70px;
+}
+.graphOptions label {
+	float: left;
+	color: white;
+	font-size: 14px;
+}
+.graphOptions .selectContainer {
+	float: left;
+}
+.inputNumDays {
+	background-color: #737373;
+	padding: 0 10px;
+	border-radius: 5px;
+}
+.inputNumDays input {
+	margin: 0 9px;
+	background-color: #999999;
+	font-size: 14px;
+	padding: 7px 5px;
+	color: white;
+}
+.inputNumDays input:focus,
+.addInput input:focus {
+	background-color: white;
+	color: black;
+}
+.dailyContainer {
+	border-top: 1px solid #666666;
+	padding: 0 10px;
+}
+.monthlyContainer {
+	padding: 0 10px;
+}
+.graphTitle {
+	padding-bottom:0;
+}
+.graphTitle h3 {
+	float: left;
+	color: #efef43;
+	padding-right: 8px;
+}
+.graphTitle p {
+	padding-top: 4px;
+	color: #bfbfbf;
+}
+.graphInfo {
+	padding-top: 4px;
+	padding-bottom: 0;
+}
+#dailyChartContainer, #monthlyChartContainer {
+	padding-top: 20px;
+}
+#dailyChartContainer, #monthlyChartContainer, #trackerChartContainer {
+	background-color: #404040;
+	border-radius: 10px;
+}
+#monthlyChartContainer, #trackerChartContainer {
+	margin-top: 8px;
+}
+#trackerChartContainer {
+	padding-top: 10px;
+}
+.heading, .dt-button-header {
+	background-color: #595959;
+}
+.hideButton {
+	margin-right: 30px !important;
+}
+button.hideButton:active:not(.disabled), button.hideButton.active:not(.disabled),
+div.hideButton:active:not(.disabled),
+div.hideButton.active:not(.disabled),
+a.hideButton:active:not(.disabled),
+a.hideButton.active:not(.disabled) {
+	border: 2px solid #999999 !important;
+}
+button.hideSelected:not(.disabled),
+div.hideSelected:not(.disabled),
+a.hideSelected:not(.disabled) {
+	border: 2px solid #5778db !important;
+}
+.hideSelected:hover:not(.disabled) {
+	background: #5778db !important;
+}
+button.deleteSelected:not(.disabled),
+div.deleteSelected:not(.disabled),
+a.deleteSelected:not(.disabled) {
+	border: 2px solid #e60000 !important;
+}
+.deleteSelected:hover:not(.disabled) {
+	background: #e60000 !important;
+}
+.hideDeleteText {
+	font-size: 13px;
+	background-color: #ad1f1f;
+	padding: 3px 8px;
+	border: 1px solid #e46767;
+	border-radius: 5px;
+	display: none;
+	margin-top: 5px;
+}
+.buttons-columnVisibility:not(.hideButton) {
+	border: 0px !important;
+}
+#torrentsTable {
+	width: 100%;
+	padding-left:10px;
+	padding-right:10px;
+	position: relative;
+	border-top: 1px solid #666666;
+	background-color: #595959;
+}
+.text-wrap{
+    white-space:normal;
+}
+.width-filename{
+    max-width: 700px;
+	min-width: 250px;
+}
+.width-tracker-client{
+	width: 185px;
+}
+#torrents_table_paginate, #single_history_table_paginate, #date_table_paginate {
+	background-color: #262626;
+	border: 1px solid #808080;
+}
+#torrents_table_first {
+	border-radius: 5px 0px 0px 5px;
+}
+#torrents_table_last {
+	border-radius: 0px 5px 5px 0px;
+}	
+thead {
+	font-size: 12px;
+}
+table {
+	font-size: 13px;
+	color: white;
+}
+#openButton {
+	color: white;
+	font-size: 13px;
+	text-align: left;
+	padding: 0;
+	margin: 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+}
+label {
+	color: white;
+	font-size: 14px;
+}
+select {
+	background-color: #737373;
+	color: white;
+	font-size: 14px;
+	padding: 5px;
+	border-radius: 5px;
+	cursor: pointer;
+}
+.arrow {
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  padding: 3px;
+}
+.arrowRight {
+  transform: rotate(-45deg);
+  -webkit-transform: rotate(-45deg);
+}
+.arrowLeft {
+  transform: rotate(135deg);
+  -webkit-transform: rotate(135deg);
+}
+/* The Modal (background) */
+.modal-background {
+  display: none; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 2; /* Sit on top */
+  padding-top: 100px; /* Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+/* Modal Content */
+.modal-content {
+  position: relative;
+  background-color: #4d4d4d;
+  margin: auto;
+  padding: 0;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+  -webkit-animation-name: animatetop;
+  -webkit-animation-duration: 0.4s;
+  animation-name: animatetop;
+  animation-duration: 0.4s;
+  border-radius: 5px;
+}
+.torrent-modal-content {
+	width: 675px;
+}
+.date-modal-content {
+	width: 1668px;
+}
+.edit-client-modal-content {
+	width: 380px;
+}
+.add-client-modal-content {
+	width: 430px;
+}
+/* Add Animation */
+@-webkit-keyframes animatetop {
+  from {top:-300px; opacity:0} 
+  to {top:0; opacity:1}
+}
+
+@keyframes animatetop {
+  from {top:-300px; opacity:0}
+  to {top:0; opacity:1}
+}
+
+/* The Close Button */
+.date-modal-close, .torrent-modal-close,
+.edit-client-modal-close, .add-client-modal-close,
+.notification-close {
+  float: right;
+  font-size: 26px;
+  font-weight: bold;
+}
+
+.date-modal-close:hover,
+.torrent-modal-close:hover,
+.edit-client-modal-close:hover,
+.add-client-modal-close:hover,
+.notification-close:hover,
+.date-modal-close:focus,
+.torrent-modal-close:focus,
+.edit-client-modal-close:focus,
+.add-client-modal-close:focus,
+.notification-close:focus {
+  color: #cccccc;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.torrent-modal-header, .date-modal-header,
+.edit-client-modal-header, .add-client-modal-header,
+.notification-header {
+  padding: 2px 16px;
+  background-color: #666666;
+  color: #f2f2f2;
+	border-radius: 5px 5px 0px 0px;
+}
+.torrent-modal-header h4, .date-modal-header h4,
+.edit-client-modal-header h4, .add-client-modal-header h4 {
+	margin: 8px 0;
+}
+.notification-header h4 {
+	margin: 6px 0;
+}
+.date-modal-header .downloaded,
+.date-modal-header .uploaded {
+	font-size: 13px;
+}
+.date-modal-info {
+	padding-bottom: 15px;
+	padding-left: 5px;
+	font-size: 13px;
+}
+.modal-body {
+	padding: 10px 10px 0px;
+}
+.modal-body div.dt-button-collection {
+  top: 340px;
+  right: 33% !important;
+}
+.downloaded, .offlineClient ul li, .offlineClient ul li::before, .offClientTooltip {
+	color: #ff6666;
+}
+.uploaded, .activeClient ul li, .activeClient ul li::before {
+	color: #71da71;
+}
+.activeClient ul, .offlineClient ul {
+  	list-style: none;
+	padding: 0;
+}
+.activeClient ul li::before, .offlineClient ul li::before {
+	content: "\2022";
+	font-weight: bold;
+	display: inline-block; 
+	width: 9px;
+	margin: 0;
+}
+.offClientTooltip, .torrentInfoTooltip {
+	position: relative;
+}
+.offClientTooltip .offClientTTipText,
+.torrentInfoTooltip .torrentInfoTTipText {
+	visibility: hidden;
+	background-color: #1a1a1a;
+	color: white;
+	text-align: center;
+	border-radius: 6px;
+	padding: 5px 10px;
+	position: absolute;
+	z-index: 1;
+	top: -5px;
+	left: 110%;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+.offClientTooltip .offClientTTipText {
+	width: 180px;
+}
+.torrentInfoTooltip .torrentInfoTTipText {
+	width: 240px;
+}
+.offClientTooltip .offClientTTipText::after,
+.torrentInfoTooltip .torrentInfoTTipText::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  right: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent black transparent transparent;
+}
+.offClientTooltip:hover .offClientTTipText,
+.torrentInfoTooltip:hover .torrentInfoTTipText {
+	visibility: visible;
+	opacity: 1;
+}
+.torrentInfoTooltip ul {
+	padding-left: 14px;
+}
+.torrentInfoTooltip li span {
+	position: relative;
+	left: -5px;
+}
+.torrentInfoTooltip li span, .offClientTTipText {
+	font-size: 12px;
+}
+.torrentInfoTTipText ul li {
+	text-align: left;
+	margin-bottom: 9px;
+}
+.addPage2{
+	display: none;
+}
+#notification {
+	position: fixed;
+	bottom: 20px;
+	right: -20%;
+	z-index: 1;
+	width: 240px;
+	background-color: #4d4d4d;
+	margin: auto;
+	padding: 0;
+	box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+	border-radius: 5px;
+}
+.notification-body {
+	padding: 8px 10px;
+}
+.notification-body p {
+	margin-bottom: 7px;
+}
+.notification-body button {
+	display: block;
+	margin: 0 auto;
+	padding: 6px 20px;
+}
+.settingsNav {
+	width: 130px;
+	position: fixed;
+	z-index: 1;
+	top: 140px;
+	left: 10px;
+	overflow-x: hidden;
+	padding: 8px 0;
+	border: 1px solid red;
+}
+.settingsNav a {
+	padding: 6px 8px 6px 16px;
+	text-decoration: none;
+	font-size: 25px;
+	color: white;
+	display: block;
+}
+.settingsNav a:hover {
+	color: #064579;
+}
+button {
+	padding: 9px 25px;
+	border: 1px solid #808080;
+	border-radius: 8px;
+	font-size: 13px;
+	color: white;
+	background-color: #404040;
+	cursor: pointer;
+}
+button.settingButton {
+	margin-right: 10px;
+}
+button:hover:not(:disabled) {
+	background-color: #333333;
+}
+button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+#editClient, #deleteClient {
+	padding: 4px 15px;
+}
+#deleteClient:hover {
+	background-color: #d41111;
+}
+.buttonBar {
+	margin-top: 20px;
+}
+.settingLabel {
+	width: 250px;
+	margin-top: 5px;
+}
+.settingSelect {
+	width: 150px;
+}
+.settingContainer {
+	display: flex;
+	width: 430px;
+	padding: 10px 15px;
+}
+.row-client-modal {
+	display: flex;
+	padding: 10px 15px;
+}
+#add-client-modal .modal-body,
+#edit-client-modal .modal-body {
+	padding: 0;
+}
+::placeholder {
+  color: #b3b3b3;
+  opacity: 1;
+}
+:-ms-input-placeholder, ::-ms-input-placeholder {
+ color: #b3b3b3;
+}
+.addLabel, .editLabel {
+	margin-top: 3px
+}
+.addLabel {
+	width: 190px;
+}
+.editLabel {
+	width: 110px;
+}
+.addPage2 .addLabel {
+	width: 80px;
+}
+.addInput {
+	width: 217px;
+}
+.addPage2 .addInput input {
+	width: 310px;
+}
+.addInput input {
+	font-size: 14px;
+	border: 0;
+	border-radius: 5px;
+	padding: 5px 10px;
+	background-color: #737373;
+	color: white;
+}
+.modalButtonBar {
+	margin-top: 13px;
+	padding-bottom: 13px;
+	display: flex;
+	justify-content: center;
+}
+.addVerif, .addVerif2, .editVerif {
+	display: none;
+	justify-content: center;
+	padding-bottom: 15px;
+}
+.addVerifText, .addVerifText2, .editVerifText {
+	font-size: 13px;
+	padding: 0 15px;
+}
+.settingRow1 {
+	background-color: #4d4d4d;
+}
+.settingRow2 {
+	background-color: #404040;
+}
+.settingRow3 {
+	background-color: #333333;
+}
+#clients_table {
+	float: left;
+}
+@media screen and (max-width: 1366px) {
+	.date-modal-content {
+		width: 1300px;
+	}
+	thead {
+		font-size: 11px;
+	}
+	table {
+		font-size: 12px;
+	}
+	.width-filename {
+		max-width: 550px;
+		min-width: 100px;
+	}
+	.width-tracker-client{
+    	max-width: 110px;
+		min-width: 60px;
+	}
+}
+@media screen and (max-width: 1280px) {
+	.date-modal-content {
+		width: 1200px;
+	}
+}
