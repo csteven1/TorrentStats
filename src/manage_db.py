@@ -25,20 +25,17 @@ d_check_frequency = 10
 
 class ManageDB:
 	def __init__(self):
-		# for windows
-		# self.data_dir = "C:/Users/Cory/Documents/TorrentStatsNew"
-		# for docker
-		self.data_dir = "TorrentStats"
+		self.data_dir = os.path.join(os.getcwd(), "TorrentStats")
 
-		Path(self.data_dir + "/logs").mkdir(parents=True, exist_ok=True)
-		Path(self.data_dir + "/backup").mkdir(parents=True, exist_ok=True)
+		Path(os.path.join(self.data_dir, "logs")).mkdir(parents=True, exist_ok=True)
+		Path(os.path.join(self.data_dir, "backup")).mkdir(parents=True, exist_ok=True)
 
 		self.logger = logging.getLogger('log')
 		self.logger.setLevel(logging.DEBUG)
 
 		formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-		file_handler = RotatingFileHandler(self.data_dir + '/logs/log.log', maxBytes=102400, backupCount=5,
+		file_handler = RotatingFileHandler(os.path.join(self.data_dir, "logs", "log.log"), maxBytes=102400, backupCount=5,
 										   encoding='utf-8')
 		file_handler.setFormatter(formatter)
 		file_handler.setLevel(logging.DEBUG)
@@ -51,12 +48,12 @@ class ManageDB:
 
 		config = configparser.ConfigParser()
 
-		if os.path.isfile(self.data_dir + "/torrentstats.db") == False:
+		if os.path.isfile(os.path.join(self.data_dir, "torrentstats.db")) == False:
 			self.first_start(self.data_dir, self.logger)
 		else:
 			self.initial_start(self.data_dir, self.logger)
 
-		config.read(self.data_dir + "/config.ini")
+		config.read(os.path.join(self.data_dir, "config.ini"))
 
 		global t_check_frequency
 		global backup_frequency
@@ -98,7 +95,7 @@ class ManageDB:
 		# create log file
 		logger.info("No database exists. Creating...")
 
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 
 		c.execute("""CREATE TABLE trackers (
@@ -168,7 +165,7 @@ class ManageDB:
 								 'backup_frequency': str(backup_frequency),
 								 'deleted_check_frequency': str(d_check_frequency)}
 
-		with open(data_dir + "/config.ini", 'w') as config_file:
+		with open(os.path.join(data_dir, "config.ini"), 'w') as config_file:
 			config.write(config_file)
 
 		logger.info("Database created and application locale set to '" + l[0] + "'")
@@ -178,7 +175,7 @@ class ManageDB:
 						 user, pw, logger):
 		logger.info("New client detected: '" + display_name + "' (" + client_name + "). Adding to DB...")
 
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 
 		# fill client table
@@ -527,7 +524,7 @@ class ManageDB:
 	# no activity date in deluge. to find recent torrents we'll just have to check for matching hashes and
 	# changes to down/up
 	def check_deluge(self, data_dir, client_torrents):
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 
 		recent = []
@@ -557,7 +554,7 @@ class ManageDB:
 	def initial_check(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip, user,
 					  pw, logger):
 		logger.info("Checking for recent activity from '" + display_name + "' (" + client_name + ")")
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 
 		recent_torrents = []
@@ -597,7 +594,7 @@ class ManageDB:
 	# check for recent changes at intervals
 	def frequent_check(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip, user,
 					   pw, logger):
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 
 		current_time = datetime.now()
@@ -627,7 +624,7 @@ class ManageDB:
 	# read the config file fresh every time, to account for new clients
 	def multiple_frequent_checks(self, data_dir, scheduler, logger):
 		config = configparser.ConfigParser()
-		config.read(data_dir + "/config.ini")
+		config.read(os.path.join(data_dir, "config.ini"))
 
 		global t_check_frequency
 		global backup_frequency
@@ -661,7 +658,7 @@ class ManageDB:
 			d_check_frequency = config['Preferences']['deleted_check_frequency']
 
 		# get all existing client names from the DB
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 		select_clients = c.execute("SELECT section_name FROM clients")
 		clients_list = select_clients.fetchall()
@@ -692,13 +689,13 @@ class ManageDB:
 	# Update the version name of the client in config and the db
 	def update_client_version(self, data_dir, new_version, section):
 		config = configparser.ConfigParser()
-		config.read(data_dir + "/config.ini")
+		config.read(os.path.join(data_dir, "config.ini"))
 		config.set(section, 'client_name', new_version)
 
-		with open(data_dir + "/config.ini", 'w') as config_file:
+		with open(os.path.join(data_dir, "config.ini"), 'w') as config_file:
 			config.write(config_file)
 
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 		c.execute("UPDATE clients SET client_name=? WHERE section_name=?", (new_version, section))
 		conn.commit()
@@ -707,7 +704,7 @@ class ManageDB:
 	# Change status to 'Deleted' for deleted torrents, update directories of torrents and add missing torrents
 	def update_torrent_info(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip,
 							user, pw, logger):
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 
 		c.execute("SELECT torrents.id, torrents.hash, torrents.directory, torrents.name FROM torrents INNER JOIN "
@@ -779,7 +776,7 @@ class ManageDB:
 		logger.info("Updating client and torrent info...")
 
 		config = configparser.ConfigParser()
-		config.read(data_dir + "/config.ini")
+		config.read(os.path.join(data_dir, "config.ini"))
 
 		for section in config:
 			if 'Client' in section:
@@ -807,8 +804,9 @@ class ManageDB:
 	# Backup database
 	def backup_database(self, data_dir, logger):
 		logger.info("Backing up database...")
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
-		backup_conn = sqlite3.connect(data_dir + "/backup/torrentstats-backup-" + str(date.today()) + ".db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		backup_conn = sqlite3.connect(os.path.join(data_dir, "backup",
+												   ("torrentstats-backup-" + str(date.today()) + ".db")))
 
 		with backup_conn:
 			conn.backup(backup_conn)
@@ -817,18 +815,18 @@ class ManageDB:
 
 		# keep 3 DB backups. If we have more, delete the oldest one
 		files = {}
-		for filename in os.scandir(data_dir + "/backup"):
-			files[filename.name] = os.path.getmtime(data_dir + "/backup/" + filename.name)
+		for filename in os.scandir(os.path.join(data_dir, "backup")):
+			files[filename.name] = os.path.getmtime(os.path.join(data_dir, "backup", filename.name))
 
 		if len(files) > 4:
-			os.remove(data_dir + "/backup/" + min(files, key=files.get))
+			os.remove(os.path.join(data_dir, "backup", min(files, key=files.get)))
 
 		logger.info("Database backup completed")
 
 	# check modified time of backed up files. If they're all older than 4 days, we're overdue a backup
 	def check_backups(self, data_dir, logger):
-		for filename in os.scandir(data_dir + "/backup"):
-			if os.path.getmtime(data_dir + "/backup/" + filename.name) < (time.time() - 345600):
+		for filename in os.scandir(os.path.join(data_dir, "backup")):
+			if os.path.getmtime(os.path.join(data_dir, "backup", filename.name)) < (time.time() - 345600):
 				self.backup_database(data_dir, logger)
 				return
 
@@ -837,9 +835,9 @@ class ManageDB:
 		logger.info("Performing initial database check...")
 
 		config = configparser.ConfigParser()
-		config.read(data_dir + "/config.ini")
+		config.read(os.path.join(data_dir, "config.ini"))
 
-		conn = sqlite3.connect(data_dir + "/torrentstats.db")
+		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
 		c = conn.cursor()
 		# get all existing client names from the DB
 		select_clients = c.execute("SELECT section_name FROM clients")
