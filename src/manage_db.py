@@ -1,4 +1,5 @@
 import sqlite3
+import os
 import os.path
 import time
 import configparser
@@ -17,9 +18,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # import client_connect
 from src import client_connect
 
-t_check_frequency = 15
-backup_frequency = 24
-d_check_frequency = 24
+t_check_frequency = 2
+backup_frequency = 1
+d_check_frequency = 10
 
 
 class ManageDB:
@@ -73,21 +74,16 @@ class ManageDB:
 			self.scheduler.add_job(self.multiple_frequent_checks, 'cron', hour='*', minute='*/' + t_check_frequency,
 								   args=[self.data_dir, self.scheduler, self.logger], misfire_grace_time=30, id='1')
 
-		if int(backup_frequency) > 23:
-			self.scheduler.add_job(self.backup_database, 'cron',
-								   day_of_week='*/' + str(int(int(backup_frequency) / 24)),
-								   hour='0', minute='6', args=[self.data_dir, self.logger], misfire_grace_time=30,
-								   id='2')
-		else:
-			self.scheduler.add_job(self.backup_database, 'cron', day_of_week='*', hour='*/' + backup_frequency,
-								   minute='6', args=[self.data_dir, self.logger], misfire_grace_time=30, id='2')
+		self.scheduler.add_job(self.backup_database, 'cron', day_of_week='*/' + backup_frequency, hour='0', minute='1',
+							   second='45', args=[self.data_dir, self.logger], misfire_grace_time=30, id='2')
 
-		if int(d_check_frequency) > 23:
-			self.scheduler.add_job(self.multiple_update_info, 'cron', hour='0', minute='1',
-								   args=[self.data_dir, self.logger], misfire_grace_time=30, id='3')
+		if int(d_check_frequency) > 59:
+			self.scheduler.add_job(self.multiple_update_info, 'cron', hour='*/' + str(int(int(d_check_frequency) / 60)),
+								   minute='0', second='30', args=[self.data_dir, self.logger], misfire_grace_time=30,
+								   id='3')
 		else:
-			self.scheduler.add_job(self.multiple_update_info, 'cron', hour='*/' + d_check_frequency, minute='1',
-								   args=[self.data_dir, self.logger], misfire_grace_time=30, id='3')
+			self.scheduler.add_job(self.multiple_update_info, 'cron', hour='*', minute='*/' + d_check_frequency,
+								   second='30', args=[self.data_dir, self.logger], misfire_grace_time=30, id='3')
 
 		self.scheduler.start()
 
@@ -168,9 +164,9 @@ class ManageDB:
 		config = configparser.ConfigParser()
 		l = locale.getdefaultlocale()
 		config['Preferences'] = {'locale': l[0],
-								 'torrent_check_frequency': '15',
-								 'backup_frequency': '24',
-								 'deleted_check_frequency': '24'}
+								 'torrent_check_frequency': str(t_check_frequency),
+								 'backup_frequency': str(backup_frequency),
+								 'deleted_check_frequency': str(d_check_frequency)}
 
 		with open(data_dir + "/config.ini", 'w') as config_file:
 			config.write(config_file)
@@ -257,10 +253,11 @@ class ManageDB:
 			logger.error("Client not found in DB. Can't add torrent")
 			return
 
-		select_torrent_id = c.execute("SELECT id FROM torrents WHERE client_id=? AND hash=?",
+		select_torrent_id = c.execute("SELECT id, status FROM torrents WHERE client_id=? AND hash=?",
 									  (client_id[0], torrent['hash']))
 		torrent_id = select_torrent_id.fetchone()
 
+		past_deleted = None
 		# if there's no matching entry in the torrents table, it must be a new torrent, so we'll need to add it to
 		# the DB
 		if not torrent_id:
@@ -281,15 +278,20 @@ class ManageDB:
 																			 torrent['downloadDir'], torrent['size'],
 																			 torrent['hash'], 1))
 
-			get_torrent_id = c.execute("SELECT id FROM torrents WHERE client_id=? AND hash=?",
+			get_torrent_id = c.execute("SELECT id, status FROM torrents WHERE client_id=? AND hash=?",
 									   (client_id[0], torrent['hash']))
 			torrent_id = get_torrent_id.fetchone()
 		else:
+			if torrent_id[1] == 'Deleted':
+				past_deleted = 1
+			else:
+				past_deleted = 0
+
 			# update status and size
 			entry = (torrent['state'], torrent['size'], torrent_id[0])
 			c.execute("UPDATE torrents SET status=?, size=? WHERE id=?", entry)
 
-		fetch_recent = c.execute("SELECT id, total_downloaded, total_uploaded, progress FROM torrent_history WHERE " 
+		fetch_recent = c.execute("SELECT id, total_downloaded, total_uploaded, progress FROM torrent_history WHERE "
 								 "torrent_id=? AND date>=?", (torrent_id[0], start_today))
 		recent = fetch_recent.fetchone()
 
@@ -393,28 +395,60 @@ class ManageDB:
 					logger.info("'" + display_name + "': New torrent. Adding '" + torrent['name'] + "' to database")
 
 				else:
-					downloaded = torrent['downloaded'] - history[0]
-					uploaded = torrent['uploaded'] - history[1]
+					downloaded = None
+					uploaded = None
+					# compensate for re-added torrents. if status was deleted, add the previous stats to the new ones.
+					if past_deleted:
+						downloaded = torrent['downloaded']
+						uploaded = torrent['uploaded']
+					else:
+						downloaded = torrent['downloaded'] - history[0]
+						uploaded = torrent['uploaded'] - history[1]
 
 					if uploaded == 0 and downloaded == 0:
 						return
+
 					# if existing torrent has completed since last launch and was completed before the last activity,
 					# we'll assume the final progress of the download was completed on the done date.
 					# Insert an entry with downloaded-historyDownloaded on completed date.
 					# Add a second entry on the activity date with 0 down and uploaded-historyUploaded.
-					if torrent['doneDate'] > 0 and torrent['downloaded'] > history[0]:
+					if torrent['doneDate'] > 0 and torrent['downloaded'] > history[0] and not past_deleted:
 						if self.end_of_date(datetime.fromtimestamp(torrent['doneDate'])) < torrent['activityDate']:
+							logger.info("doneDate>0, status not deleted, downloaded>pastDownloaded,"
+										" doneDate<activityDate")
 							ratio_estimate = history[1] / torrent['downloaded']
 							entries.append((torrent_id[0], torrent['doneDate'], downloaded, 0, torrent['downloaded'],
 											history[1], torrent['progress'], ratio_estimate))
 							entries.append((torrent_id[0], torrent['activityDate'], 0, uploaded, torrent['downloaded'],
 											torrent['uploaded'], torrent['progress'], torrent['ratio']))
 						else:
+							logger.info("doneDate>0, status not deleted, downloaded>pastDownloaded,"
+										" doneDate=activityDate")
 							entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
 											torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 											torrent['ratio']))
+
+					# if re-add of old, and completed earlier than latest activity, assume all down/up was on done date
+					elif torrent['doneDate'] > 0 and past_deleted:
+						if self.end_of_date(datetime.fromtimestamp(torrent['doneDate'])) < torrent['activityDate']:
+							logger.info("doneDate>0, status=Deleted, doneDate<activityDate")
+							entries.append((torrent_id[0], torrent['doneDate'], downloaded, uploaded,
+											(torrent['downloaded'] + history[0]), (torrent['uploaded'] + history[1]),
+											torrent['progress'], torrent['ratio']))
+						else:
+							logger.info("doneDate>0, status=Deleted, doneDate=activityDate")
+							entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
+											(torrent['downloaded'] + history[0]), (torrent['uploaded'] + history[1]),
+											torrent['progress'], torrent['ratio']))
+
+					elif not torrent['doneDate'] and past_deleted:
+						logger.info("not done, status=Deleted")
+						entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
+										(torrent['downloaded'] + history[0]), (torrent['uploaded'] + history[1]),
+										torrent['progress'], torrent['ratio']))
 					# if existing torrent hasn't been completed, add one entry on the activity date
 					else:
+						logger.info("not done or already completed")
 						entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
 										torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 										torrent['ratio']))
@@ -427,33 +461,48 @@ class ManageDB:
 			# if there's historical and recent history (multiple times today of old torrent), update the entry with
 			# latest stats
 			else:
-				recent_down = torrent['downloaded'] - recent[1]
-				recent_up = torrent['uploaded'] - recent[2]
+				if not past_deleted:
+					recent_down = torrent['downloaded'] - recent[1]
+					recent_up = torrent['uploaded'] - recent[2]
 
-				progress_diff = torrent['progress'] - recent[3]
-
-				if not progress_diff:
-					if recent_down == 0 and recent_up == 0:
-						return
+					progress_diff = torrent['progress'] - recent[3]
+					if not progress_diff:
+						if recent_down == 0 and recent_up == 0:
+							return
 
 				# if there is a recent but not a historical, it must be an update to a new entry from today.
 				if not history:
 					logger.info("'" + display_name + "': Activity on new torrent. Updating history for '" +
 								torrent['name'] + "'")
-					entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
-									torrent['downloaded'], torrent['uploaded'], torrent['progress'], torrent['ratio'],
-									recent[0]))
+					if not past_deleted:
+						entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
+										torrent['downloaded'], torrent['uploaded'], torrent['progress'],
+										torrent['ratio'], recent[0]))
+					else:
+						entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
+										(torrent['downloaded'] + recent[1]), (torrent['uploaded'] + recent[2]),
+										torrent['progress'], torrent['ratio'], recent[0]))
 				else:
-					downloaded = torrent['downloaded'] - history[0]
-					uploaded = torrent['uploaded'] - history[1]
-
-					if uploaded == 0 and downloaded == 0:
-						return
-
 					logger.info("'" + display_name + "': Activity on existing torrent. Updating history for '" +
 								torrent['name'] + "'")
-					entries.append((torrent['activityDate'], downloaded, uploaded, torrent['downloaded'],
-									torrent['uploaded'], torrent['progress'], torrent['ratio'], recent[0]))
+
+					downloaded = None
+					uploaded = None
+
+					if not past_deleted:
+						downloaded = torrent['downloaded'] - history[0]
+						uploaded = torrent['uploaded'] - history[1]
+
+						if uploaded == 0 and downloaded == 0:
+							return
+
+						entries.append((torrent['activityDate'], downloaded, uploaded, torrent['downloaded'],
+										torrent['uploaded'], torrent['progress'], torrent['ratio'], recent[0]))
+					else:
+						entries.append((torrent['activityDate'], (torrent['downloaded'] + recent[1]),
+										(torrent['uploaded'] + recent[2]), (torrent['downloaded'] + history[0]),
+										(torrent['uploaded'] + history[1]), torrent['progress'], torrent['ratio'],
+										recent[0]))
 
 				c.executemany("UPDATE torrent_history SET date=?, downloaded=?, uploaded=?, total_downloaded=?, "
 							  "total_uploaded=?, progress=?, ratio=? WHERE id=?", entries)
@@ -591,27 +640,24 @@ class ManageDB:
 				scheduler.reschedule_job('1', trigger='cron', hour='*/' + str(
 					int(int(config['Preferences']['torrent_check_frequency']) / 60)), minute='0')
 			else:
-				scheduler.reschedule_job('1', trigger='cron', hour='*',
-										 minute='*/' + config['Preferences']['torrent_check_frequency'])
+				scheduler.reschedule_job('1', trigger='cron', hour='*', minute='*/' +
+										 config['Preferences']['torrent_check_frequency'])
 			t_check_frequency = config['Preferences']['torrent_check_frequency']
 
 		if int(backup_frequency) != int(config['Preferences']['backup_frequency']):
 			logger.info("Backup frequency changed by user. Rescheduling job")
-			if int(config['Preferences']['backup_frequency']) > 23:
-				scheduler.reschedule_job('2', trigger='cron', day_of_week='*/' + str(
-					int(int(config['Preferences']['backup_frequency']) / 24)), hour='0', minute='6')
-			else:
-				scheduler.reschedule_job('2', trigger='cron', day_of_week='*',
-										 hour='*/' + config['Preferences']['backup_frequency'], minute='6')
+			scheduler.reschedule_job('2', trigger='cron', day_of_week='*/' + backup_frequency, hour='0', minute='1',
+									 second='45')
 			backup_frequency = config['Preferences']['backup_frequency']
 
 		if int(d_check_frequency) != int(config['Preferences']['deleted_check_frequency']):
 			logger.info("Frequency of checking for deleted torrents changed by user. Rescheduling job")
-			if int(config['Preferences']['deleted_check_frequency']) > 23:
-				scheduler.reschedule_job('3', trigger='cron', hour='0', minute='1')
+			if int(config['Preferences']['deleted_check_frequency']) > 59:
+				scheduler.reschedule_job('3', trigger='cron', hour='*/' + str(
+					int(int(config['Preferences']['deleted_check_frequency']) / 60)), minute='0', second='30')
 			else:
-				scheduler.reschedule_job('3', trigger='cron',
-										 hour='*/' + config['Preferences']['deleted_check_frequency'], minute='1')
+				scheduler.reschedule_job('3', trigger='cron', hour='*', minute='*/' +
+										 config['Preferences']['deleted_check_frequency'], second='30')
 			d_check_frequency = config['Preferences']['deleted_check_frequency']
 
 		# get all existing client names from the DB
