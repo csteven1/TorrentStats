@@ -89,12 +89,11 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 						torrent['downloaded'] = torrent.pop('downloadedEver')
 						torrent['uploaded'] = torrent.pop('uploadedEver')
 						if not torrent['activityDate']:
-							torrent['activityDate'] = torrent.pop('addedDate')
+							torrent['activityDate'] = torrent['addedDate']
 							torrent['ratio'] = 0
 							torrent.pop('uploadRatio')
 						else:
 							torrent['ratio'] = torrent.pop('uploadRatio')
-							torrent.pop('addedDate')
 						torrent['progress'] = torrent.pop('percentDone')
 						torrent['size'] = torrent.pop('sizeWhenDone')
 						tracker_name = urlparse(torrent['trackerStats'][0]['host']).hostname
@@ -125,11 +124,11 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 					all_torrents = get_all_torrents.json()
 					for torrent in all_torrents:
 						if not torrent['last_activity']:
-							torrent['activityDate'] = torrent.pop('added_on')
+							torrent['activityDate'] = torrent['added_on']
 							torrent.pop('last_activity')
 						else:
 							torrent['activityDate'] = torrent.pop('last_activity')
-							torrent.pop('added_on')
+						torrent['addedDate'] = torrent.pop('added_on')
 						torrent['doneDate'] = torrent.pop('completion_on')
 						torrent['downloadDir'] = torrent.pop('save_path')
 						torrent['tracker'] = None
@@ -168,8 +167,8 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 					else:
 						# get torrents
 						torrents_data = ('{"method": "core.get_torrents_status", "params": [[],["name", "hash", "state"'
-										 ', "progress", "download_location", "total_wanted", "all_time_download", '
-										 '"total_uploaded", "ratio", "tracker_host"]], "id": 1}')
+										 ', "progress", "time_added", "download_location", "total_wanted", '
+										 '"all_time_download", "total_uploaded", "ratio", "tracker_host"]], "id": 1}')
 						resp = s.post(ip + '/json', data=torrents_data, headers=header, timeout=0.5)
 
 						torrents = resp.json()
@@ -182,6 +181,7 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 									'total_uploaded')
 								torrents['result'][torrent]['size'] = torrents['result'][torrent].pop('total_wanted')
 								torrents['result'][torrent]['progress'] = torrents['result'][torrent]['progress'] / 100
+								torrents['result'][torrent]['addedDate'] = torrents['result'][torrent]['time_added']
 								torrents['result'][torrent]['downloadDir'] = torrents['result'][torrent].pop(
 									'download_location')
 								torrents['result'][torrent]['tracker'] = torrents['result'][torrent].pop('tracker_host')
