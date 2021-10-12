@@ -18,16 +18,18 @@ from apscheduler.schedulers.background import BackgroundScheduler
 # import client_connect
 from src import client_connect
 
-t_check_frequency = 2
+t_check_frequency = 5
 backup_frequency = 1
-d_check_frequency = 10
+d_check_frequency = 30
 
 
 class ManageDB:
 	def __init__(self):
 		self.data_dir = os.path.join(os.getcwd(), "TorrentStats")
 
-		Path(os.path.join(self.data_dir, "logs")).mkdir(parents=True, exist_ok=True)
+		self.log_dir = os.path.join(self.data_dir, "logs")
+
+		Path(self.log_dir).mkdir(parents=True, exist_ok=True)
 		Path(os.path.join(self.data_dir, "backup")).mkdir(parents=True, exist_ok=True)
 
 		self.logger = logging.getLogger('log')
@@ -35,7 +37,7 @@ class ManageDB:
 
 		formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
-		file_handler = RotatingFileHandler(os.path.join(self.data_dir, "logs", "log.log"), maxBytes=102400, backupCount=5,
+		file_handler = RotatingFileHandler(os.path.join(self.log_dir, "log.log"), maxBytes=102400, backupCount=5,
 										   encoding='utf-8')
 		file_handler.setFormatter(formatter)
 		file_handler.setLevel(logging.DEBUG)
@@ -48,12 +50,14 @@ class ManageDB:
 
 		config = configparser.ConfigParser()
 
-		if os.path.isfile(os.path.join(self.data_dir, "torrentstats.db")) == False:
-			self.first_start(self.data_dir, self.logger)
+		self.ts_db = os.path.join(self.data_dir, "torrentstats.db")
+		self.config_file = os.path.join(self.data_dir, "config.ini")
+		if os.path.isfile(self.ts_db) == False:
+			self.first_start(self.ts_db, self.config_file, self.logger)
 		else:
-			self.initial_start(self.data_dir, self.logger)
+			self.initial_start(self.data_dir, self.ts_db, self.config_file, self.logger)
 
-		config.read(os.path.join(self.data_dir, "config.ini"))
+		config.read(self.config_file)
 
 		global t_check_frequency
 		global backup_frequency
@@ -66,36 +70,40 @@ class ManageDB:
 		if int(t_check_frequency) > 59:
 			self.scheduler.add_job(self.multiple_frequent_checks, 'cron',
 								   hour='*/' + str(int(int(t_check_frequency) / 60)), minute='0',
-								   args=[self.data_dir, self.scheduler, self.logger], misfire_grace_time=30, id='1')
+								   args=[self.ts_db, self.config_file, self.scheduler, self.logger],
+								   misfire_grace_time=30, id='1')
 		else:
 			self.scheduler.add_job(self.multiple_frequent_checks, 'cron', hour='*', minute='*/' + t_check_frequency,
-								   args=[self.data_dir, self.scheduler, self.logger], misfire_grace_time=30, id='1')
+								   args=[self.ts_db, self.config_file, self.scheduler, self.logger],
+								   misfire_grace_time=30, id='1')
 
 		self.scheduler.add_job(self.backup_database, 'cron', day_of_week='*/' + backup_frequency, hour='0', minute='1',
-							   second='45', args=[self.data_dir, self.logger], misfire_grace_time=30, id='2')
+							   second='45', args=[self.data_dir, self.ts_db, self.logger], misfire_grace_time=30,
+							   id='2')
 
 		if int(d_check_frequency) > 59:
 			self.scheduler.add_job(self.multiple_update_info, 'cron', hour='*/' + str(int(int(d_check_frequency) / 60)),
-								   minute='0', second='30', args=[self.data_dir, self.logger], misfire_grace_time=30,
-								   id='3')
+								   minute='0', second='30', args=[self.ts_db, self.config_file, self.logger],
+								   misfire_grace_time=30, id='3')
 		else:
 			self.scheduler.add_job(self.multiple_update_info, 'cron', hour='*', minute='*/' + d_check_frequency,
-								   second='30', args=[self.data_dir, self.logger], misfire_grace_time=30, id='3')
+								   second='30', args=[self.ts_db, self.config_file, self.logger], misfire_grace_time=30,
+								   id='3')
 
 		self.scheduler.start()
 
-	def close_ts(self, data_dir, scheduler, logger):
-		self.multiple_frequent_checks(data_dir, scheduler, logger)
+	def close_ts(self, ts_db, config_file, scheduler, logger):
+		self.multiple_frequent_checks(ts_db, config_file, scheduler, logger)
 		scheduler.shutdown()
 		logger.info("Closing application")
 		sys.exit(0)
 
 	# Create database file and add tables
-	def first_start(self, data_dir, logger):
+	def first_start(self, ts_db, config_file, logger):
 		# create log file
 		logger.info("No database exists. Creating...")
 
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 
 		c.execute("""CREATE TABLE trackers (
@@ -117,6 +125,7 @@ class ManageDB:
 					name TEXT NOT NULL,
 					tracker_id INTEGER NOT NULL,
 					client_id INTEGER NOT NULL,
+					added_date INTEGER,
 					status TEXT NOT NULL,
 					directory TEXT,
 					size INTEGER NOT NULL,
@@ -165,17 +174,17 @@ class ManageDB:
 								 'backup_frequency': str(backup_frequency),
 								 'deleted_check_frequency': str(d_check_frequency)}
 
-		with open(os.path.join(data_dir, "config.ini"), 'w') as config_file:
-			config.write(config_file)
+		with open(config_file, 'w') as config_new:
+			config.write(config_new)
 
 		logger.info("Database created and application locale set to '" + l[0] + "'")
 
 	# add all torrents from client when client is first added
-	def add_client_to_db(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip,
+	def add_client_to_db(self, ts_db, client_torrents, display_name, client_name, section_name, client_type, ip,
 						 user, pw, logger):
 		logger.info("New client detected: '" + display_name + "' (" + client_name + "). Adding to DB...")
 
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 
 		# fill client table
@@ -213,12 +222,12 @@ class ManageDB:
 			select_tracker_id = c.execute("SELECT id FROM trackers WHERE name=?", (torrent['tracker'],))
 			tracker_id = select_tracker_id.fetchone()
 
-			# entry = name / tracker id / client id / status / directory / selected size / hash / hidden
-			torrents_entry = (torrent['name'], tracker_id[0], client_id[0], torrent['state'], torrent['downloadDir'],
-							  torrent['size'], torrent['hash'], 1)
+			# entry = name / tracker id / client id / added date / status / directory / selected size / hash / hidden
+			torrents_entry = (torrent['name'], tracker_id[0], client_id[0], torrent['addedDate'], torrent['state'], 
+							  torrent['downloadDir'], torrent['size'], torrent['hash'], 1)
 
 			torrents_table.append(torrents_entry)
-		c.executemany("INSERT INTO torrents VALUES (NULL,?,?,?,?,?,?,?,?)", torrents_table)
+		c.executemany("INSERT INTO torrents VALUES (NULL,?,?,?,?,?,?,?,?,?)", torrents_table)
 
 		# fill torrent_history table
 		for torrent in client_torrents:
@@ -250,11 +259,10 @@ class ManageDB:
 			logger.error("Client not found in DB. Can't add torrent")
 			return
 
-		select_torrent_id = c.execute("SELECT id, status FROM torrents WHERE client_id=? AND hash=?",
-									  (client_id[0], torrent['hash']))
+		select_torrent_id = c.execute("SELECT id FROM torrents WHERE client_id=? AND hash=? AND added_date=?",
+									  (client_id[0], torrent['hash'], torrent['addedDate']))
 		torrent_id = select_torrent_id.fetchone()
 
-		past_deleted = None
 		# if there's no matching entry in the torrents table, it must be a new torrent, so we'll need to add it to
 		# the DB
 		if not torrent_id:
@@ -269,21 +277,16 @@ class ManageDB:
 				get_tracker_id = c.execute("SELECT id FROM trackers WHERE name=?", (torrent['tracker'],))
 				tracker_id = get_tracker_id.fetchone()
 
-			# entry = name / tracker id / client id / status / directory / selected size / hash / hidden
-			c.execute("INSERT INTO torrents VALUES (NULL,?,?,?,?,?,?,?,?)", (torrent['name'], tracker_id[0],
-																			 client_id[0], torrent['state'],
-																			 torrent['downloadDir'], torrent['size'],
-																			 torrent['hash'], 1))
+			# entry = name / tracker id / client id / added_date / status / directory / selected size / hash / hidden
+			c.execute("INSERT INTO torrents VALUES (NULL,?,?,?,?,?,?,?,?,?)", (torrent['name'], tracker_id[0],
+																			   client_id[0], torrent['addedDate'],
+																			   torrent['state'], torrent['downloadDir'],
+																			   torrent['size'], torrent['hash'], 1))
 
-			get_torrent_id = c.execute("SELECT id, status FROM torrents WHERE client_id=? AND hash=?",
-									   (client_id[0], torrent['hash']))
+			get_torrent_id = c.execute("SELECT id FROM torrents WHERE client_id=? AND hash=? AND added_date=?",
+									   (client_id[0], torrent['hash'], torrent['addedDate']))
 			torrent_id = get_torrent_id.fetchone()
 		else:
-			if torrent_id[1] == 'Deleted':
-				past_deleted = 1
-			else:
-				past_deleted = 0
-
 			# update status and size
 			entry = (torrent['state'], torrent['size'], torrent_id[0])
 			c.execute("UPDATE torrents SET status=?, size=? WHERE id=?", entry)
@@ -392,15 +395,8 @@ class ManageDB:
 					logger.info("'" + display_name + "': New torrent. Adding '" + torrent['name'] + "' to database")
 
 				else:
-					downloaded = None
-					uploaded = None
-					# compensate for re-added torrents. if status was deleted, add the previous stats to the new ones.
-					if past_deleted:
-						downloaded = torrent['downloaded']
-						uploaded = torrent['uploaded']
-					else:
-						downloaded = torrent['downloaded'] - history[0]
-						uploaded = torrent['uploaded'] - history[1]
+					downloaded = torrent['downloaded'] - history[0]
+					uploaded = torrent['uploaded'] - history[1]
 
 					if uploaded == 0 and downloaded == 0:
 						return
@@ -409,43 +405,20 @@ class ManageDB:
 					# we'll assume the final progress of the download was completed on the done date.
 					# Insert an entry with downloaded-historyDownloaded on completed date.
 					# Add a second entry on the activity date with 0 down and uploaded-historyUploaded.
-					if torrent['doneDate'] > 0 and torrent['downloaded'] > history[0] and not past_deleted:
+					if torrent['doneDate'] > 0 and torrent['downloaded'] > history[0]:
 						if self.end_of_date(datetime.fromtimestamp(torrent['doneDate'])) < torrent['activityDate']:
-							logger.info("doneDate>0, status not deleted, downloaded>pastDownloaded,"
-										" doneDate<activityDate")
 							ratio_estimate = history[1] / torrent['downloaded']
 							entries.append((torrent_id[0], torrent['doneDate'], downloaded, 0, torrent['downloaded'],
 											history[1], torrent['progress'], ratio_estimate))
 							entries.append((torrent_id[0], torrent['activityDate'], 0, uploaded, torrent['downloaded'],
 											torrent['uploaded'], torrent['progress'], torrent['ratio']))
 						else:
-							logger.info("doneDate>0, status not deleted, downloaded>pastDownloaded,"
-										" doneDate=activityDate")
 							entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
 											torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 											torrent['ratio']))
 
-					# if re-add of old, and completed earlier than latest activity, assume all down/up was on done date
-					elif torrent['doneDate'] > 0 and past_deleted:
-						if self.end_of_date(datetime.fromtimestamp(torrent['doneDate'])) < torrent['activityDate']:
-							logger.info("doneDate>0, status=Deleted, doneDate<activityDate")
-							entries.append((torrent_id[0], torrent['doneDate'], downloaded, uploaded,
-											(torrent['downloaded'] + history[0]), (torrent['uploaded'] + history[1]),
-											torrent['progress'], torrent['ratio']))
-						else:
-							logger.info("doneDate>0, status=Deleted, doneDate=activityDate")
-							entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
-											(torrent['downloaded'] + history[0]), (torrent['uploaded'] + history[1]),
-											torrent['progress'], torrent['ratio']))
-
-					elif not torrent['doneDate'] and past_deleted:
-						logger.info("not done, status=Deleted")
-						entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
-										(torrent['downloaded'] + history[0]), (torrent['uploaded'] + history[1]),
-										torrent['progress'], torrent['ratio']))
 					# if existing torrent hasn't been completed, add one entry on the activity date
 					else:
-						logger.info("not done or already completed")
 						entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
 										torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 										torrent['ratio']))
@@ -458,48 +431,33 @@ class ManageDB:
 			# if there's historical and recent history (multiple times today of old torrent), update the entry with
 			# latest stats
 			else:
-				if not past_deleted:
-					recent_down = torrent['downloaded'] - recent[1]
-					recent_up = torrent['uploaded'] - recent[2]
+				recent_down = torrent['downloaded'] - recent[1]
+				recent_up = torrent['uploaded'] - recent[2]
 
-					progress_diff = torrent['progress'] - recent[3]
-					if not progress_diff:
-						if recent_down == 0 and recent_up == 0:
-							return
+				progress_diff = torrent['progress'] - recent[3]
+				if not progress_diff:
+					if recent_down == 0 and recent_up == 0:
+						return
 
 				# if there is a recent but not a historical, it must be an update to a new entry from today.
 				if not history:
 					logger.info("'" + display_name + "': Activity on new torrent. Updating history for '" +
 								torrent['name'] + "'")
-					if not past_deleted:
-						entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
-										torrent['downloaded'], torrent['uploaded'], torrent['progress'],
-										torrent['ratio'], recent[0]))
-					else:
-						entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
-										(torrent['downloaded'] + recent[1]), (torrent['uploaded'] + recent[2]),
-										torrent['progress'], torrent['ratio'], recent[0]))
+					entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
+									torrent['downloaded'], torrent['uploaded'], torrent['progress'],
+									torrent['ratio'], recent[0]))
 				else:
 					logger.info("'" + display_name + "': Activity on existing torrent. Updating history for '" +
 								torrent['name'] + "'")
 
-					downloaded = None
-					uploaded = None
+					downloaded = torrent['downloaded'] - history[0]
+					uploaded = torrent['uploaded'] - history[1]
 
-					if not past_deleted:
-						downloaded = torrent['downloaded'] - history[0]
-						uploaded = torrent['uploaded'] - history[1]
+					if uploaded == 0 and downloaded == 0:
+						return
 
-						if uploaded == 0 and downloaded == 0:
-							return
-
-						entries.append((torrent['activityDate'], downloaded, uploaded, torrent['downloaded'],
-										torrent['uploaded'], torrent['progress'], torrent['ratio'], recent[0]))
-					else:
-						entries.append((torrent['activityDate'], (torrent['downloaded'] + recent[1]),
-										(torrent['uploaded'] + recent[2]), (torrent['downloaded'] + history[0]),
-										(torrent['uploaded'] + history[1]), torrent['progress'], torrent['ratio'],
-										recent[0]))
+					entries.append((torrent['activityDate'], downloaded, uploaded, torrent['downloaded'],
+									torrent['uploaded'], torrent['progress'], torrent['ratio'], recent[0]))
 
 				c.executemany("UPDATE torrent_history SET date=?, downloaded=?, uploaded=?, total_downloaded=?, "
 							  "total_uploaded=?, progress=?, ratio=? WHERE id=?", entries)
@@ -523,8 +481,8 @@ class ManageDB:
 
 	# no activity date in deluge. to find recent torrents we'll just have to check for matching hashes and
 	# changes to down/up
-	def check_deluge(self, data_dir, client_torrents):
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+	def check_deluge(self, ts_db, client_torrents):
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 
 		recent = []
@@ -551,10 +509,10 @@ class ManageDB:
 		return recent
 
 	# check for recent changes on program start, and add them to the DB
-	def initial_check(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip, user,
+	def initial_check(self, ts_db, client_torrents, display_name, client_name, section_name, client_type, ip, user,
 					  pw, logger):
 		logger.info("Checking for recent activity from '" + display_name + "' (" + client_name + ")")
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 
 		recent_torrents = []
@@ -567,7 +525,7 @@ class ManageDB:
 		start_today = self.start_of_date(current_time)
 
 		if client_type == 'deluge':
-			recent_torrents = self.check_deluge(data_dir, client_torrents)
+			recent_torrents = self.check_deluge(ts_db, client_torrents)
 		else:
 			for torrent in client_torrents:
 				if torrent['activityDate'] > 0:
@@ -592,9 +550,9 @@ class ManageDB:
 		logger.info("Check complete")
 
 	# check for recent changes at intervals
-	def frequent_check(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip, user,
+	def frequent_check(self, ts_db, client_torrents, display_name, client_name, section_name, client_type, ip, user,
 					   pw, logger):
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 
 		current_time = datetime.now()
@@ -603,7 +561,7 @@ class ManageDB:
 		start_today = self.start_of_date(current_time)
 
 		if client_type == 'deluge':
-			recent_torrents = self.check_deluge(data_dir, client_torrents)
+			recent_torrents = self.check_deluge(ts_db, client_torrents)
 			for torrent in recent_torrents:
 				self.add_to_db(torrent, display_name, client_name, section_name, client_type, start_today, None, None,
 							   c, logger)
@@ -622,9 +580,9 @@ class ManageDB:
 
 	# when we have multiple clients, use this method to call frequent checks for each one, one after another
 	# read the config file fresh every time, to account for new clients
-	def multiple_frequent_checks(self, data_dir, scheduler, logger):
+	def multiple_frequent_checks(self, ts_db, config_file, scheduler, logger):
 		config = configparser.ConfigParser()
-		config.read(os.path.join(data_dir, "config.ini"))
+		config.read(config_file)
 
 		global t_check_frequency
 		global backup_frequency
@@ -658,7 +616,7 @@ class ManageDB:
 			d_check_frequency = config['Preferences']['deleted_check_frequency']
 
 		# get all existing client names from the DB
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 		select_clients = c.execute("SELECT section_name FROM clients")
 		clients_list = select_clients.fetchall()
@@ -675,11 +633,11 @@ class ManageDB:
 															  config[section]['client_name'], logger)
 				if client_torrents:
 					if section not in existing_clients:
-						self.add_client_to_db(data_dir, client_torrents, config[section]['display_name'],
+						self.add_client_to_db(ts_db, client_torrents, config[section]['display_name'],
 											  config[section]['client_name'], section, config[section]['client_type'],
 											  config[section]['ip'], config[section]['user'], config[section]['pass'],
 											  logger)
-					self.frequent_check(data_dir, client_torrents, config[section]['display_name'],
+					self.frequent_check(ts_db, client_torrents, config[section]['display_name'],
 										config[section]['client_name'], section, config[section]['client_type'],
 										config[section]['ip'], config[section]['user'], config[section]['pass'], logger)
 
@@ -687,24 +645,24 @@ class ManageDB:
 		conn.close()
 
 	# Update the version name of the client in config and the db
-	def update_client_version(self, data_dir, new_version, section):
+	def update_client_version(self, ts_db, config_file, new_version, section):
 		config = configparser.ConfigParser()
-		config.read(os.path.join(data_dir, "config.ini"))
+		config.read(config_file)
 		config.set(section, 'client_name', new_version)
 
-		with open(os.path.join(data_dir, "config.ini"), 'w') as config_file:
-			config.write(config_file)
+		with open(config_file, 'w') as config_new:
+			config.write(config_new)
 
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 		c.execute("UPDATE clients SET client_name=? WHERE section_name=?", (new_version, section))
 		conn.commit()
 		conn.close()
 
 	# Change status to 'Deleted' for deleted torrents, update directories of torrents and add missing torrents
-	def update_torrent_info(self, data_dir, client_torrents, display_name, client_name, section_name, client_type, ip,
+	def update_torrent_info(self, ts_db, client_torrents, display_name, client_name, section_name, client_type, ip,
 							user, pw, logger):
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 
 		c.execute("SELECT torrents.id, torrents.hash, torrents.directory, torrents.name FROM torrents INNER JOIN "
@@ -772,11 +730,11 @@ class ManageDB:
 		conn.close()
 
 	# for each client, update the client version name and check for deleted torrents and modified directories
-	def multiple_update_info(self, data_dir, logger):
+	def multiple_update_info(self, ts_db, config_file, logger):
 		logger.info("Updating client and torrent info...")
 
 		config = configparser.ConfigParser()
-		config.read(os.path.join(data_dir, "config.ini"))
+		config.read(config_file)
 
 		for section in config:
 			if 'Client' in section:
@@ -788,13 +746,13 @@ class ManageDB:
 				if new_version:
 					logger.info("Application version of '" + config[section]['display_name'] + "' has changed. "
 																							   "Updating")
-					self.update_client_version(data_dir, new_version, section)
+					self.update_client_version(ts_db, config_file, new_version, section)
 				client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
 															  config[section]['pass'], config[section]['client_type'],
 															  config[section]['display_name'],
 															  config[section]['client_name'], logger)
 				if client_torrents:
-					self.update_torrent_info(data_dir, client_torrents, config[section]['display_name'],
+					self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
 											 config[section]['client_name'], section, config[section]['client_type'],
 											 config[section]['ip'], config[section]['user'], config[section]['pass'],
 											 logger)
@@ -802,11 +760,11 @@ class ManageDB:
 		logger.info("Update complete")
 
 	# Backup database
-	def backup_database(self, data_dir, logger):
+	def backup_database(self, data_dir, ts_db, logger):
 		logger.info("Backing up database...")
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
-		backup_conn = sqlite3.connect(os.path.join(data_dir, "backup",
-												   ("torrentstats-backup-" + str(date.today()) + ".db")))
+		backup_dir = os.path.join(data_dir, "backup")
+		conn = sqlite3.connect(ts_db)
+		backup_conn = sqlite3.connect(os.path.join(backup_dir, ("torrentstats-backup-" + str(date.today()) + ".db")))
 
 		with backup_conn:
 			conn.backup(backup_conn)
@@ -815,29 +773,29 @@ class ManageDB:
 
 		# keep 3 DB backups. If we have more, delete the oldest one
 		files = {}
-		for filename in os.scandir(os.path.join(data_dir, "backup")):
-			files[filename.name] = os.path.getmtime(os.path.join(data_dir, "backup", filename.name))
+		for filename in os.scandir(backup_dir):
+			files[filename.name] = os.path.getmtime(os.path.join(backup_dir, filename.name))
 
 		if len(files) > 4:
-			os.remove(os.path.join(data_dir, "backup", min(files, key=files.get)))
+			os.remove(os.path.join(backup_dir, min(files, key=files.get)))
 
 		logger.info("Database backup completed")
 
 	# check modified time of backed up files. If they're all older than 4 days, we're overdue a backup
-	def check_backups(self, data_dir, logger):
-		for filename in os.scandir(os.path.join(data_dir, "backup")):
-			if os.path.getmtime(os.path.join(data_dir, "backup", filename.name)) < (time.time() - 345600):
-				self.backup_database(data_dir, logger)
+	def check_backups(self, data_dir, ts_db, logger):
+		backup_dir = os.path.join(data_dir, "backup")
+		for filename in os.scandir(backup_dir):
+			if os.path.getmtime(os.path.join(backup_dir, filename.name)) < (time.time() - 345600):
+				self.backup_database(data_dir, ts_db, logger)
 				return
 
 	# on program start, let's do a check on all frequent tasks to see if they're overdue, and execute them if needed
-	def initial_start(self, data_dir, logger):
+	def initial_start(self, data_dir, ts_db, config_file, logger):
 		logger.info("Performing initial database check...")
-
 		config = configparser.ConfigParser()
-		config.read(os.path.join(data_dir, "config.ini"))
+		config.read(config_file)
 
-		conn = sqlite3.connect(os.path.join(data_dir, "torrentstats.db"))
+		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
 		# get all existing client names from the DB
 		select_clients = c.execute("SELECT section_name FROM clients")
@@ -856,22 +814,22 @@ class ManageDB:
 				if client_torrents:
 					# if it's a new client, add it to the DB
 					if section not in clients:
-						self.add_client_to_db(data_dir, client_torrents, config[section]['display_name'],
+						self.add_client_to_db(ts_db, client_torrents, config[section]['display_name'],
 											  config[section]['client_name'], section, config[section]['client_type'],
 											  config[section]['ip'], config[section]['user'], config[section]['pass'],
 											  logger)
 					# check for activity since last run
-					self.initial_check(data_dir, client_torrents, config[section]['display_name'],
+					self.initial_check(ts_db, client_torrents, config[section]['display_name'],
 									   config[section]['client_name'], section, config[section]['client_type'],
 									   config[section]['ip'], config[section]['user'], config[section]['pass'], logger)
 					logger.info("Updating client and torrent info of '" + config[section]['display_name'] + "'...")
-					self.update_torrent_info(data_dir, client_torrents, config[section]['display_name'],
+					self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
 											 config[section]['client_name'], section, config[section]['client_type'],
 											 config[section]['ip'], config[section]['user'], config[section]['pass'],
 											 logger)
 					logger.info("Update complete")
 
-		self.check_backups(data_dir, logger)
+		self.check_backups(data_dir, ts_db, logger)
 		logger.info("Check complete")
 
 		conn.commit()
