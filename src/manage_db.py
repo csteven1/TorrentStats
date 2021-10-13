@@ -90,6 +90,9 @@ class ManageDB:
 								   second='30', args=[self.ts_db, self.config_file, self.logger], misfire_grace_time=30,
 								   id='3')
 
+		self.scheduler.add_job(self.multiple_update_client_version, 'cron', hour='*/4', minute='0', second='15',
+							   args=[self.config_file, self.logger], misfire_grace_time=30, id='4')
+
 		self.scheduler.start()
 
 	def close_ts(self, ts_db, config_file, scheduler, logger):
@@ -115,8 +118,7 @@ class ManageDB:
 		c.execute("""CREATE TABLE clients (
 					id INTEGER PRIMARY KEY AUTOINCREMENT,
 					section_name TEXT NOT NULL,
-					display_name TEXT NOT NULL,
-					client_name TEXT NOT NULL
+					display_name TEXT NOT NULL
 					)
 					""")
 
@@ -188,7 +190,7 @@ class ManageDB:
 		c = conn.cursor()
 
 		# fill client table
-		c.execute("INSERT INTO clients VALUES (NULL,?,?,?)", (section_name, display_name, client_name))
+		c.execute("INSERT INTO clients VALUES (NULL,?,?)", (section_name, display_name))
 
 		select_client_id = c.execute("SELECT id FROM clients WHERE section_name=?", (section_name,))
 		client_id = select_client_id.fetchone()
@@ -223,7 +225,7 @@ class ManageDB:
 			tracker_id = select_tracker_id.fetchone()
 
 			# entry = name / tracker id / client id / added date / status / directory / selected size / hash / hidden
-			torrents_entry = (torrent['name'], tracker_id[0], client_id[0], torrent['addedDate'], torrent['state'], 
+			torrents_entry = (torrent['name'], tracker_id[0], client_id[0], torrent['addedDate'], torrent['state'],
 							  torrent['downloadDir'], torrent['size'], torrent['hash'], 1)
 
 			torrents_table.append(torrents_entry)
@@ -288,8 +290,8 @@ class ManageDB:
 			torrent_id = get_torrent_id.fetchone()
 		else:
 			# update status and size
-			entry = (torrent['state'], torrent['size'], torrent_id[0])
-			c.execute("UPDATE torrents SET status=?, size=? WHERE id=?", entry)
+			c.execute("UPDATE torrents SET status=?, size=? WHERE id=?", (torrent['state'], torrent['size'],
+																		  torrent_id[0]))
 
 		fetch_recent = c.execute("SELECT id, total_downloaded, total_uploaded, progress FROM torrent_history WHERE "
 								 "torrent_id=? AND date>=?", (torrent_id[0], start_today))
@@ -644,20 +646,28 @@ class ManageDB:
 		conn.commit()
 		conn.close()
 
-	# Update the version name of the client in config and the db
-	def update_client_version(self, ts_db, config_file, new_version, section):
-		config = configparser.ConfigParser()
-		config.read(config_file)
+	# Update the version name of a client
+	def update_client_version(self, config, config_file, new_version, section):
 		config.set(section, 'client_name', new_version)
 
 		with open(config_file, 'w') as config_new:
 			config.write(config_new)
 
-		conn = sqlite3.connect(ts_db)
-		c = conn.cursor()
-		c.execute("UPDATE clients SET client_name=? WHERE section_name=?", (new_version, section))
-		conn.commit()
-		conn.close()
+	# Check if any clients have updated
+	def multiple_update_client_version(self, config_file, logger):
+		config = configparser.ConfigParser()
+		config.read(config_file)
+
+		for section in config:
+			if 'Client' in section:
+				new_version = client_connect.compare_client_version(config[section]['ip'], config[section]['user'],
+																	config[section]['pass'],
+																	config[section]['client_type'],
+																	config[section]['display_name'],
+																	config[section]['client_name'], logger)
+				if new_version:
+					self.update_client_version(config, config_file, new_version, section)
+					logger.info("Updated application version of " + config[section]['display_name'])
 
 	# Change status to 'Deleted' for deleted torrents, update directories of torrents and add missing torrents
 	def update_torrent_info(self, ts_db, client_torrents, display_name, client_name, section_name, client_type, ip,
@@ -738,15 +748,6 @@ class ManageDB:
 
 		for section in config:
 			if 'Client' in section:
-				new_version = client_connect.compare_client_version(config[section]['ip'], config[section]['user'],
-																	config[section]['pass'],
-																	config[section]['client_type'],
-																	config[section]['display_name'],
-																	config[section]['client_name'], logger)
-				if new_version:
-					logger.info("Application version of '" + config[section]['display_name'] + "' has changed. "
-																							   "Updating")
-					self.update_client_version(ts_db, config_file, new_version, section)
 				client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
 															  config[section]['pass'], config[section]['client_type'],
 															  config[section]['display_name'],
@@ -822,11 +823,20 @@ class ManageDB:
 					self.initial_check(ts_db, client_torrents, config[section]['display_name'],
 									   config[section]['client_name'], section, config[section]['client_type'],
 									   config[section]['ip'], config[section]['user'], config[section]['pass'], logger)
-					logger.info("Updating client and torrent info of '" + config[section]['display_name'] + "'...")
+					logger.info("Updating torrent info of '" + config[section]['display_name'] + "'...")
 					self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
 											 config[section]['client_name'], section, config[section]['client_type'],
 											 config[section]['ip'], config[section]['user'], config[section]['pass'],
 											 logger)
+
+					new_version = client_connect.compare_client_version(config[section]['ip'], config[section]['user'],
+																		config[section]['pass'],
+																		config[section]['client_type'],
+																		config[section]['display_name'],
+																		config[section]['client_name'], logger)
+					if new_version:
+						self.update_client_version(config, config_file, new_version, section)
+						logger.info("Updated application version of " + config[section]['display_name'])
 					logger.info("Update complete")
 
 		self.check_backups(data_dir, ts_db, logger)
