@@ -131,7 +131,6 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 						torrent['addedDate'] = torrent.pop('added_on')
 						torrent['doneDate'] = torrent.pop('completion_on')
 						torrent['downloadDir'] = torrent.pop('save_path')
-						torrent['tracker'] = None
 						torrent['state'] = get_qbit_status(torrent['state'])
 						for unused_field in ['amount_left', 'auto_tmm', 'availability', 'category', 'completed',
 											 'dl_limit', 'dlspeed', 'downloaded_session', 'eta', 'f_l_piece_prio',
@@ -139,7 +138,8 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 											 'num_complete', 'num_incomplete', 'num_leechs', 'num_seeds', 'priority',
 											 'ratio_limit', 'seeding_time_limit', 'seen_complete', 'seq_dl',
 											 'super_seeding', 'tags', 'time_active', 'total_size', 'tracker',
-											 'up_limit', 'uploaded_session', 'upspeed']:
+											 'up_limit', 'uploaded_session', 'upspeed', 'content_path', 'seeding_time',
+											 'trackers_count']:
 							torrent.pop(unused_field)
 
 					return all_torrents
@@ -184,6 +184,8 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 								torrents['result'][torrent]['addedDate'] = torrents['result'][torrent]['time_added']
 								torrents['result'][torrent]['downloadDir'] = torrents['result'][torrent].pop(
 									'download_location')
+								if torrents['result'][torrent]['ratio'] < 0:
+									torrents['result'][torrent]['ratio'] = 0
 								torrents['result'][torrent]['tracker'] = torrents['result'][torrent].pop('tracker_host')
 								all_torrents.append(torrents['result'][torrent])
 
