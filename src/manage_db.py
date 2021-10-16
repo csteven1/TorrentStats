@@ -329,7 +329,7 @@ class ManageDB:
 					logger.info("'" + display_name + "': New activity on existing torrent. Adding new entry to history "
 													 "for '" + torrent['name'] + "'")
 
-				c.execute("INSERT INTO torrent_history VALUES (NULL,?,?,?,?,?,?)", entry)
+				c.execute("INSERT INTO torrent_history VALUES (NULL,?,?,?,?,?,?,?,?)", entry)
 			# if there's historical and recent history (multiple times today of old torrent),
 			# update the entry with latest stats
 			else:
@@ -369,8 +369,7 @@ class ManageDB:
 
 			entries = []
 			# if there's no historical or recent history (brand new torrent), add a new entry with latest stats
-			# entry = torrents id / date / downloaded / uploaded / total downloaded / total uploaded / progress /
-			# ratio / is_new
+			# entry = torrents id / date / downloaded / uploaded / total downloaded / total uploaded / progress / ratio
 			if not recent:
 				if not history:
 					if torrent['doneDate'] > 0:
@@ -483,31 +482,19 @@ class ManageDB:
 
 	# no activity date in deluge. to find recent torrents we'll just have to check for matching hashes and
 	# changes to down/up
-	def check_deluge(self, ts_db, client_torrents):
-		conn = sqlite3.connect(ts_db)
-		c = conn.cursor()
-
+	def check_deluge(self, c, ts_db, client_torrents, client_id):
 		recent = []
-		# select most recent history of each torrent
-		select_existing_torrents = c.execute("SELECT t.hash, th.total_downloaded, th.total_uploaded, MAX(th.date) FROM "
-											 "torrents t INNER JOIN torrent_history th ON t.id = th.torrent_id GROUP BY"
-											 " th.torrent_id ORDER BY t.hash")
-		existing_torrents = select_existing_torrents.fetchall()
-
-		# add the sorted hashes to it's own list so we can search it
-		existing_hashes = []
-		for torrent in existing_torrents:
-			existing_hashes.append(torrent[0])
-
 		for torrent in client_torrents:
-			i = self.index(existing_hashes, torrent['hash'])
-			# if the torrent is already in the DB, check for changes to down/up.
-			# if it's not in the DB, it must be new so add it
-			if i == None:
+			select_search_recent = c.execute("SELECT t.id FROM torrents t INNER JOIN torrent_history th ON t.id = "
+											 "th.torrent_id WHERE t.hash=? AND t.client_id=? AND t.added_date=? AND "
+											 "th.total_downloaded=? AND th.total_uploaded=?", (torrent['hash'],
+																							   client_id,
+																							   torrent['addedDate'],
+																							   torrent['downloaded'],
+																							   torrent['uploaded']))
+			search_recent = select_search_recent.fetchone()
+			if not search_recent:
 				recent.append(torrent)
-			else:
-				if torrent['downloaded'] > existing_torrents[i][1] or torrent['uploaded'] > existing_torrents[i][2]:
-					recent.append(torrent)
 		return recent
 
 	# check for recent changes on program start, and add them to the DB
@@ -527,7 +514,9 @@ class ManageDB:
 		start_today = self.start_of_date(current_time)
 
 		if client_type == 'deluge':
-			recent_torrents = self.check_deluge(ts_db, client_torrents)
+			select_client_id = c.execute("SELECT id FROM clients WHERE section_name=?", (section_name,))
+			client_id = select_client_id.fetchone()[0]
+			recent_torrents = self.check_deluge(c, ts_db, client_torrents, client_id)
 		else:
 			for torrent in client_torrents:
 				if torrent['activityDate'] > 0:
@@ -563,7 +552,9 @@ class ManageDB:
 		start_today = self.start_of_date(current_time)
 
 		if client_type == 'deluge':
-			recent_torrents = self.check_deluge(ts_db, client_torrents)
+			select_client_id = c.execute("SELECT id FROM clients WHERE section_name=?", (section_name,))
+			client_id = select_client_id.fetchone()[0]
+			recent_torrents = self.check_deluge(c, ts_db, client_torrents, client_id)
 			for torrent in recent_torrents:
 				self.add_to_db(torrent, display_name, client_name, section_name, client_type, start_today, None, None,
 							   c, logger)
@@ -739,7 +730,7 @@ class ManageDB:
 		conn.commit()
 		conn.close()
 
-	# for each client, update the client version name and check for deleted torrents and modified directories
+	# for each client, check for deleted torrents and modified directories
 	def multiple_update_info(self, ts_db, config_file, logger):
 		logger.info("Updating client and torrent info...")
 
