@@ -293,6 +293,11 @@ class ManageDB:
 			c.execute("UPDATE torrents SET status=?, size=? WHERE id=?", (torrent['state'], torrent['size'],
 																		  torrent_id[0]))
 
+		# make variables for logs
+		log_name = "'" + torrent['name'] + "'"
+		log_dl = log_t_dl = str(torrent['downloaded'])
+		log_ul = log_t_ul = str(torrent['uploaded'])
+
 		fetch_recent = c.execute("SELECT id, total_downloaded, total_uploaded, progress FROM torrent_history WHERE "
 								 "torrent_id=? AND date>=?", (torrent_id[0], start_today))
 		recent = fetch_recent.fetchone()
@@ -303,19 +308,25 @@ class ManageDB:
 
 		if client_type == 'deluge':
 			entry = ()
-			activity_date = time.time()
+			torrent['activityDate'] = time.time()
 			# at 00:00 check, the activity date will be logged as the next day when using time.time(). Subtract a
 			# couple of minutes to correct
-			if not int(datetime.fromtimestamp(activity_date).strftime('%H%M')):
-				activity_date = activity_date - 180
+			if not int(datetime.fromtimestamp(torrent['activityDate']).strftime('%H%M')):
+				torrent['activityDate'] = torrent['activityDate'] - 180
 
 			# if there's no historical or recent history (brand new torrent), add a new entry with latest stats
 			# entry = torrents id / date / downloaded / uploaded / total downloaded / total uploaded / progress / ratio
 			if not recent:
 				if not history:
-					entry = (torrent_id[0], activity_date, torrent['downloaded'], torrent['uploaded'],
+					log_name = "+" + log_name
+					if torrent['downloaded']:
+						log_dl = log_t_dl = "+" + log_dl
+					if torrent['uploaded']:
+						log_ul = log_t_ul = "+" + log_ul
+
+					entry = (torrent_id[0], torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
 							 torrent['downloaded'], torrent['uploaded'], torrent['progress'], torrent['ratio'])
-					logger.info("'" + display_name + "': New torrent. Adding '" + torrent['name'] + "' to database")
+
 				# if there's no recent but is a historical (first of the day), add a new entry
 				else:
 					downloaded = torrent['downloaded'] - history[0]
@@ -324,12 +335,18 @@ class ManageDB:
 					if uploaded == 0 and downloaded == 0:
 						return
 
-					entry = (torrent_id[0], activity_date, downloaded, uploaded, torrent['downloaded'],
+					if downloaded:
+						log_dl = "+" + str(downloaded)
+						log_t_dl = "+" + log_t_dl
+					if uploaded:
+						log_ul = "+" + str(uploaded)
+						log_t_ul = "+" + log_t_ul
+
+					entry = (torrent_id[0], torrent['activityDate'], downloaded, uploaded, torrent['downloaded'],
 							 torrent['uploaded'], torrent['progress'], torrent['ratio'])
-					logger.info("'" + display_name + "': New activity on existing torrent. Adding new entry to history "
-													 "for '" + torrent['name'] + "'")
 
 				c.execute("INSERT INTO torrent_history VALUES (NULL,?,?,?,?,?,?,?,?)", entry)
+
 			# if there's historical and recent history (multiple times today of old torrent),
 			# update the entry with latest stats
 			else:
@@ -341,9 +358,14 @@ class ManageDB:
 
 				# if there is a recent but not a historical, it must be an update to a new entry from today.
 				if not history:
-					logger.info("'" + display_name + "': Activity on new torrent. Updating history for '" +
-								torrent['name'] + "'")
-					entry = (activity_date, torrent['downloaded'], torrent['uploaded'], torrent['downloaded'],
+					if recent_down:
+						log_dl = "+" + str(recent_down)
+						log_t_dl = "+" + log_t_dl
+					if recent_up:
+						log_ul = "+" + str(recent_up)
+						log_t_ul = "+" + log_t_ul
+
+					entry = (torrent['activityDate'], torrent['downloaded'], torrent['uploaded'], torrent['downloaded'],
 							 torrent['uploaded'], torrent['progress'], torrent['ratio'], recent[0])
 				else:
 					downloaded = torrent['downloaded'] - history[0]
@@ -352,14 +374,18 @@ class ManageDB:
 					if uploaded == 0 and downloaded == 0:
 						return
 
-					logger.info("'" + display_name + "': Activity on existing torrent. Updating history for '" +
-								torrent['name'] + "'")
-					entry = (activity_date, downloaded, uploaded, torrent['downloaded'], torrent['uploaded'],
+					if downloaded:
+						log_dl = "+" + str(downloaded)
+						log_t_dl = "+" + log_t_dl
+					if uploaded:
+						log_ul = "+" + str(uploaded)
+						log_t_ul = "+" + log_t_ul
+
+					entry = (torrent['activityDate'], downloaded, uploaded, torrent['downloaded'], torrent['uploaded'],
 							 torrent['progress'], torrent['ratio'], recent[0])
 
 				c.execute("UPDATE torrent_history SET date=?, downloaded=?, uploaded=?, total_downloaded=?, "
 						  "total_uploaded=?, progress=?, ratio=? WHERE id=?", entry)
-
 		else:
 			if torrent['activityDate']:
 				# if activityDate is 00:00, it'll get grouped as next day when pulled into tables. Subtract a couple of
@@ -372,6 +398,7 @@ class ManageDB:
 			# entry = torrents id / date / downloaded / uploaded / total downloaded / total uploaded / progress / ratio
 			if not recent:
 				if not history:
+					log_name = "+" + log_name
 					if torrent['doneDate'] > 0:
 						# if new torrent has completed since last launch and was completed before the last activity,
 						# we'll assume the torrent was added and completed on the same date.
@@ -380,21 +407,39 @@ class ManageDB:
 						if self.end_of_date(datetime.fromtimestamp(torrent['doneDate'])) < torrent['activityDate']:
 							entries.append((torrent_id[0], torrent['doneDate'], torrent['downloaded'], 0,
 											torrent['downloaded'], 0, torrent['progress'], torrent['ratio']))
+
+							if torrent['downloaded']:
+								log_dl = "+" + log_dl
+							logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['doneDate']) +
+										" | d/l:" + log_dl + "b | u/l:0b | total d/l:" + log_dl + "b | " +
+										"total u/l:0b")
+							log_dl = "0"
+
+							if torrent['uploaded']:
+								log_ul = log_t_ul = "+" + log_ul
+
 							entries.append((torrent_id[0], torrent['activityDate'], 0, torrent['uploaded'],
 											torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 											torrent['ratio']))
 						else:
+							if torrent['downloaded']:
+								log_dl = log_t_dl = "+" + log_dl
+							if torrent['uploaded']:
+								log_ul = log_t_ul = "+" + log_ul
+
 							entries.append((torrent_id[0], torrent['activityDate'], torrent['downloaded'],
 											torrent['uploaded'], torrent['downloaded'], torrent['uploaded'],
 											torrent['progress'], torrent['ratio']))
 					# if new torrent hasn't been completed, add one entry on the activity date
 					else:
+						if torrent['downloaded']:
+							log_dl = log_t_dl = "+" + log_dl
+						if torrent['uploaded']:
+							log_ul = log_t_ul = "+" + log_ul
+
 						entries.append((torrent_id[0], torrent['activityDate'], torrent['downloaded'],
 										torrent['uploaded'], torrent['downloaded'], torrent['uploaded'],
 										torrent['progress'], torrent['ratio']))
-
-					logger.info("'" + display_name + "': New torrent. Adding '" + torrent['name'] + "' to database")
-
 				else:
 					downloaded = torrent['downloaded'] - history[0]
 					uploaded = torrent['uploaded'] - history[1]
@@ -406,26 +451,59 @@ class ManageDB:
 					# we'll assume the final progress of the download was completed on the done date.
 					# Insert an entry with downloaded-historyDownloaded on completed date.
 					# Add a second entry on the activity date with 0 down and uploaded-historyUploaded.
-					if torrent['doneDate'] > 0 and torrent['downloaded'] > history[0]:
+					if torrent['doneDate'] > 0 and downloaded:
 						if self.end_of_date(datetime.fromtimestamp(torrent['doneDate'])) < torrent['activityDate']:
 							ratio_estimate = history[1] / torrent['downloaded']
 							entries.append((torrent_id[0], torrent['doneDate'], downloaded, 0, torrent['downloaded'],
 											history[1], torrent['progress'], ratio_estimate))
+
+							log_dl = "+" + str(downloaded)
+							log_t_dl = "+" + log_t_dl
+							logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['doneDate']) +
+										" | d/l:" + log_dl + "b | u/l:0b | total d/l:" + log_t_dl + "b | " +
+										"total u/l:" + str(history[1]) + "b")
+							log_dl = "0"
+							log_t_dl = str(torrent['downloaded'])
+							if uploaded:
+								log_ul = "+" + str(uploaded)
+								log_t_ul = "+" + log_t_ul
+							else:
+								log_ul = str(uploaded)
+
 							entries.append((torrent_id[0], torrent['activityDate'], 0, uploaded, torrent['downloaded'],
 											torrent['uploaded'], torrent['progress'], torrent['ratio']))
 						else:
+							if downloaded:
+								log_dl = "+" + str(downloaded)
+								log_t_dl = "+" + log_t_dl
+							else:
+								log_dl = str(downloaded)
+							if uploaded:
+								log_ul = "+" + str(uploaded)
+								log_t_ul = "+" + log_t_ul
+							else:
+								log_ul = str(uploaded)
+
 							entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
 											torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 											torrent['ratio']))
 
 					# if existing torrent hasn't been completed, add one entry on the activity date
 					else:
+						if downloaded:
+							log_dl = "+" + str(downloaded)
+							log_t_dl = "+" + log_t_dl
+						else:
+							log_dl = str(downloaded)
+						if uploaded:
+							log_ul = "+" + str(uploaded)
+							log_t_ul = "+" + log_t_ul
+						else:
+							log_ul = str(uploaded)
+
 						entries.append((torrent_id[0], torrent['activityDate'], downloaded, uploaded,
 										torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 										torrent['ratio']))
-
-					logger.info("'" + display_name + "': New activity on existing torrent. Adding new entry to history "
-													 "for '" + torrent['name'] + "'")
 
 				c.executemany("INSERT INTO torrent_history VALUES (NULL,?,?,?,?,?,?,?,?)", entries)
 
@@ -442,26 +520,39 @@ class ManageDB:
 
 				# if there is a recent but not a historical, it must be an update to a new entry from today.
 				if not history:
-					logger.info("'" + display_name + "': Activity on new torrent. Updating history for '" +
-								torrent['name'] + "'")
+					if recent_down:
+						log_dl = "+" + str(recent_down)
+						log_t_dl = "+" + log_t_dl
+					if recent_up:
+						log_ul = "+" + str(recent_up)
+						log_t_ul = "+" + log_t_ul
+
 					entries.append((torrent['activityDate'], torrent['downloaded'], torrent['uploaded'],
 									torrent['downloaded'], torrent['uploaded'], torrent['progress'],
 									torrent['ratio'], recent[0]))
 				else:
-					logger.info("'" + display_name + "': Activity on existing torrent. Updating history for '" +
-								torrent['name'] + "'")
-
 					downloaded = torrent['downloaded'] - history[0]
 					uploaded = torrent['uploaded'] - history[1]
 
 					if uploaded == 0 and downloaded == 0:
 						return
 
+					if downloaded:
+						log_dl = "+" + str(downloaded)
+						log_t_dl = "+" + log_t_dl
+					if uploaded:
+						log_ul = "+" + str(uploaded)
+						log_t_ul = "+" + log_t_ul
+
 					entries.append((torrent['activityDate'], downloaded, uploaded, torrent['downloaded'],
 									torrent['uploaded'], torrent['progress'], torrent['ratio'], recent[0]))
 
 				c.executemany("UPDATE torrent_history SET date=?, downloaded=?, uploaded=?, total_downloaded=?, "
 							  "total_uploaded=?, progress=?, ratio=? WHERE id=?", entries)
+
+		logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['activityDate']) + " | d/l:" +
+					log_dl + "b | u/l:" + log_ul + "b | total d/l:" + log_t_dl + "b | " + "total u/l:" +
+					log_t_ul + "b")
 
 	# Binary search, returning index if there's a match, else None
 	def index(self, a, x):
@@ -687,8 +778,7 @@ class ManageDB:
 			search = self.index(client_hashes, db_hash[1])
 			if search == None:
 				status_update.append((db_hash[0],))
-				logger.info("'" + display_name + "': '" + db_hash[3] + "' no longer in directory. Status changed to "
-																	   "'Deleted'")
+				logger.info("'" + display_name + "': '" + db_hash[3] + "' status changed to 'Deleted'")
 			else:
 				client_hashes.pop(search)
 
@@ -718,12 +808,12 @@ class ManageDB:
 			else:
 				if torrent['downloadDir'] != db_hashes[i][2]:
 					directory_update.append((torrent['downloadDir'], db_hashes[i][0]))
-					logger.info("'" + display_name + "': Directory of '" + db_hashes[i][3] + "' has changed. Updating "
-																							 "database")
+					logger.info("'" + display_name + "': '" + db_hashes[i][3] + "' updated directory from '" +
+								db_hashes[i][2] + "' to '" + torrent['downloadDir'] + "'")
 				if torrent['name'] != db_hashes[i][3]:
 					name_update.append((torrent['name'], db_hashes[i][0]))
-					logger.info("'" + display_name + "': Name of '" + db_hashes[i][3] + "' has changed. Updating "
-																						"database")
+					logger.info("'" + display_name + "': '" + db_hashes[i][3] + "' renamed to '" + torrent['name'] +
+								"'")
 
 		c.executemany("UPDATE torrents SET directory=? WHERE id=?", directory_update)
 		c.executemany("UPDATE torrents SET name=? WHERE id=?", name_update)
@@ -732,8 +822,6 @@ class ManageDB:
 
 	# for each client, check for deleted torrents and modified directories
 	def multiple_update_info(self, ts_db, config_file, logger):
-		logger.info("Updating client and torrent info...")
-
 		config = configparser.ConfigParser()
 		config.read(config_file)
 
@@ -748,8 +836,6 @@ class ManageDB:
 											 config[section]['client_name'], section, config[section]['client_type'],
 											 config[section]['ip'], config[section]['user'], config[section]['pass'],
 											 logger)
-
-		logger.info("Update complete")
 
 	# Backup database
 	def backup_database(self, data_dir, ts_db, logger):
@@ -814,7 +900,7 @@ class ManageDB:
 					self.initial_check(ts_db, client_torrents, config[section]['display_name'],
 									   config[section]['client_name'], section, config[section]['client_type'],
 									   config[section]['ip'], config[section]['user'], config[section]['pass'], logger)
-					logger.info("Updating torrent info of '" + config[section]['display_name'] + "'...")
+					logger.info("'" + config[section]['display_name'] + "': Updating all torrent info...")
 					self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
 											 config[section]['client_name'], section, config[section]['client_type'],
 											 config[section]['ip'], config[section]['user'], config[section]['pass'],
@@ -827,7 +913,7 @@ class ManageDB:
 																		config[section]['client_name'], logger)
 					if new_version:
 						self.update_client_version(config, config_file, new_version, section)
-						logger.info("Updated application version of " + config[section]['display_name'])
+						logger.info("'" + config[section]['display_name'] + "': Updated application version")
 					logger.info("Update complete")
 
 		self.check_backups(data_dir, ts_db, logger)
