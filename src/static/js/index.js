@@ -634,20 +634,13 @@ $(document).ready(function() {
 	$('#tracker, #client, #days').on('change', function() {
 		tracker = $('#tracker option:selected').val();
 		client = $('#client option:selected').val();
-		var tempDays = $('#days').val();
-		if ((/^-?\d+$/.test(tempDays)) && (parseInt(tempDays) > 0)) {
-			numDays = tempDays;
-			localStorage.setItem('numDays', numDays);
-			localStorage.setItem('tracker', tracker);
-			localStorage.setItem('client', client);
-			$('.numDaysTitle').text("Last " + numDays + " Days");
+		numDays = $('#days').val();
+		localStorage.setItem('numDays', numDays);
+		localStorage.setItem('tracker', tracker);
+		localStorage.setItem('client', client);
+		$('.numDaysTitle').text("Last " + numDays + " Days");
 
-			refreshCharts();
-		}
-		else {
-			$('#days').val(numDays);
-		}
-		
+		refreshCharts();
 	});
 	
 	$('#date_table tbody').on( 'click', 'button', function () {
