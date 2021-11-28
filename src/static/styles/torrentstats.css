@@ -444,12 +444,11 @@ select {
 	width: 9px;
 	margin: 0;
 }
-.offClientTooltip, .torrentInfoTooltip, .portErrTooltip {
+.offClientTooltip, .torrentInfoTooltip {
 	position: relative;
 }
 .offClientTooltip .offClientTTipText,
-.torrentInfoTooltip .torrentInfoTTipText,
-.portErrTooltip .portErrTTipText {
+.torrentInfoTooltip .torrentInfoTTipText {
 	visibility: hidden;
 	background-color: #1a1a1a;
 	color: white;
@@ -458,18 +457,10 @@ select {
 	padding: 5px 10px;
 	position: absolute;
 	z-index: 1;
-	opacity: 0;
-	transition: opacity 0.2s;
-}
-.offClientTooltip .offClientTTipText,
-.torrentInfoTooltip .torrentInfoTTipText {
 	top: -5px;
 	left: 110%;
-}
-.portErrTooltip .portErrTTipText {
-	font-size: 12px;
-	top: 120%;
-	right: 50%;
+	opacity: 0;
+	transition: opacity 0.2s;
 }
 .offClientTooltip .offClientTTipText {
 	width: 180px;
@@ -477,29 +468,16 @@ select {
 .torrentInfoTooltip .torrentInfoTTipText {
 	width: 240px;
 }
-.portErrTooltip .portErrTTipText {
-	width: 215px;
-}
-.offClientTooltip .offClientTTipText::after,
-.torrentInfoTooltip .torrentInfoTTipText::after,
-.portErrTooltip .portErrTTipText::after {
-  content: "";
-  position: absolute;
-  border-width: 5px;
-  border-style: solid;
-}
 .offClientTooltip .offClientTTipText::after,
 .torrentInfoTooltip .torrentInfoTTipText::after {
+  content: "";
+  position: absolute;
   top: 15px;
   right: 100%;
   margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
   border-color: transparent black transparent transparent;
-}
-.portErrTooltip .portErrTTipText::after {
-  bottom: 100%;
-  right: 8%;
-  margin-left: -5px;
-  border-color: transparent transparent black transparent;
 }
 .offClientTooltip:hover .offClientTTipText,
 .torrentInfoTooltip:hover .torrentInfoTTipText {
@@ -594,26 +572,8 @@ button:disabled {
 .buttonBar {
 	margin-top: 20px;
 }
-.settingInput input {
-	background-color: #808080;
-	font-size: 14px;
-	color: white;
-	border: 0;
-	border-radius: 5px;
-	padding: 5px 10px;
-	width: 93px;
-}
-.portSettingInput input {
-	border: 4px solid #808080;
-	padding: 1px 6px;
-}
-.winSettingLabel, .settingLabel {
-	width: 250px;
-}
-.winSettingLabel {
-	margin-top: 0;
-}
 .settingLabel {
+	width: 250px;
 	margin-top: 5px;
 }
 .settingSelect {
@@ -623,14 +583,6 @@ button:disabled {
 	display: flex;
 	width: 430px;
 	padding: 10px 15px;
-}
-.settingSmallContainer {
-	display: flex;
-	width: 430px;
-	padding: 7px 15px;
-}
-.winOptions, .winSetting {
-	display: none;
 }
 .row-client-modal {
 	display: flex;
