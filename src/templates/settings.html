@@ -5,13 +5,8 @@
 	<div class="col-3 heading"><h1>Settings</h1></div>
 </div>
 <div class="row" style="border-top:1px solid #666666;">
-	<div class="settingsNav">
-		<a href="#general" id="generalNav">General</a>
-		<div style="height: 2px;background-image: linear-gradient(to right, black, white, black);"></div>
-		<a href="#clients" id="clientsNav">Clients</a>
-	</div>
 	<div class="col-1"></div>
-	<div class="col-11" style="border-left:2px solid red;">
+	<div class="col-11">
 		<h2 id="general" style="padding-bottom:20px">General Settings</h2>
 		<div class="settingContainer settingRow1" style="margin-top:0;">
 			<div class="settingLabel">
@@ -25,8 +20,39 @@
 				</select>
 			</div>
 		</div>
+		<div class="settingContainer settingRow2 winSetting">
+			<div class="settingLabel">
+				<label for="port">Port <span style="font-size:11px;">(restart TorrentStats to apply)</span> :</label>
+			</div>
+			<div class="settingInput portSettingInput portErrTooltip">
+				<input type="number" name="port" id="port" min="1024" max="49151">
+				<span class='portErrTTipText'>Must be between 1024 and 49151</span>
+			</div>
+		</div>
 		<div class="buttonBar">
-			<button class="settingButton" id="resetLocale">Reset to System Default</button><button class="settingButton" id="cancelLocale" disabled>Cancel</button><button class="settingButton" id="saveLocale" style="margin-right:0;" disabled>Apply</button>
+			<button class="settingButton" id="resetGeneral">Reset to System Default</button><button class="settingButton" id="cancelGeneral" disabled>Cancel</button><button class="settingButton" id="saveGeneral" style="margin-right:0;" disabled>Apply</button>
+		</div>
+		<div class="winOptions">
+			<h2 style="margin-top:20px;padding-bottom:20px">Windows Options</h2>
+			<div class="settingSmallContainer settingRow1">
+				<div class="winSettingLabel">
+					<label for="startAtLogin" id="startLoginLabel">Start TorrentStats at login</label>
+				</div>
+				<div class="settingSelect">
+					<input type="checkbox" name="startAtLogin" id="startAtLogin">
+				</div>
+			</div>
+			<div class="settingSmallContainer settingRow2">
+				<div class="winSettingLabel">
+					<label for="startMenu" id="startMenuLabel">Shortcut in Start Menu</label>
+				</div>
+				<div class="settingSelect">
+					<input type="checkbox" name="startMenu" id="startMenu">
+				</div>
+			</div>
+			<div class="buttonBar">
+				<button class="settingButton" id="cancelWin" disabled>Cancel</button><button class="settingButton" id="saveWin" style="margin-right:0;" disabled>Apply</button>
+			</div>
 		</div>
 		<h2 style="margin-top:20px;padding-bottom:20px">Scheduled Tasks</h2>
 		<div class="settingContainer settingRow1" style="margin-top:0;">
@@ -35,13 +61,10 @@
 			</div>
 			<div class="settingSelect">
 				<select name="tCheckFrequency" id="tCheckFrequency">
+					<option value="1">Every minute</option>
+					<option value="2">Every 2 minutes</option>
 					<option value="5">Every 5 minutes</option>
 					<option value="10">Every 10 minutes</option>
-					<option value="15">Every 15 minutes</option>
-					<option value="30">Every 30 minutes</option>
-					<option value="60">Every hour</option>
-					<option value="180">Every 3 hours</option>
-					<option value="360">Every 6 hours</option>
 				</select>
 			</div>
 		</div>
@@ -51,11 +74,9 @@
 			</div>
 			<div class="settingSelect">
 				<select name="backupFrequency" id="backupFrequency">
-					<option value="6">Every 6 hours</option>
-					<option value="12">Every 12 hours</option>
-					<option value="24">Every day</option>
-					<option value="48">Every 2 days</option>
-					<option value="72">Every 3 days</option>
+					<option value="1">Every day</option>
+					<option value="2">Every 2 days</option>
+					<option value="3">Every 3 days</option>
 				</select>
 			</div>
 		</div>
@@ -63,17 +84,15 @@
 			<div class="settingLabel">
 				<label for="dCheckFrequency">Update torrent info <span class='torrentInfoTooltip'>&#9432;<span class='torrentInfoTTipText'><ul>
 					<li><span>Update status for torrents that have been deleted.</span></li>
-					<li><span>Update directories of torrents.</span></li>
-					<li style="margin-bottom: 3px;"><span>Add torrents that were missed in regular checks.</span></li>
+					<li style="margin-bottom: 3px;"><span>Update directories of torrents.</span></li>					
 					</ul></span></span>: </label>
 			</div>
 			<div class="settingSelect">
 				<select name="dCheckFrequency" id="dCheckFrequency">
-					<option value="1">Every hour</option>
-					<option value="3">Every 3 hours</option>
-					<option value="6">Every 6 hours</option>
-					<option value="12">Every 12 hours</option>
-					<option value="24">Every day</option>
+					<option value="5">Every 5 minutes</option>
+					<option value="10">Every 10 minutes</option>
+					<option value="30">Every 30 minutes</option>
+					<option value="60">Every hour</option>
 				</select>
 			</div>
 		</div>
