@@ -6,25 +6,7 @@ import sqlite3
 import locale
 import configparser
 import json
-import sys
-import os, os.path
 from datetime import datetime, time, timedelta
-
-if sys.platform == "win32":
-	from src import win_functions
-
-
-def get_data_path():
-	if sys.platform == "win32":
-		return os.path.join(os.path.dirname(sys.executable), "TorrentStats")
-	else:
-		return os.path.join(os.getcwd(), "TorrentStats")
-	
-def get_db_path():
-	return os.path.join(get_data_path(), "torrentstats.db")
-
-def get_config_path():
-	return os.path.join(get_data_path(), "config.ini")
 
 
 def make_dicts(cursor, row):
@@ -35,7 +17,7 @@ def make_dicts(cursor, row):
 # index highchart modal - return torrents active on date
 @app.route('/_date_table', methods=['GET', 'POST'])
 def date_table():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect("TorrentStats/torrentstats.db")
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -117,7 +99,7 @@ def date_table():
 
 @app.route('/_hide_torrents', methods=['GET', 'POST'])
 def hide_torrents():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect("TorrentStats/torrentstats.db")
 	c = conn.cursor()
 
 	r = request.get_json('data')
@@ -133,7 +115,7 @@ def hide_torrents():
 
 @app.route('/_delete_torrents', methods=['GET', 'POST'])
 def delete_torrents():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect("TorrentStats/torrentstats.db")
 	c = conn.cursor()
 
 	r = request.get_json('data')
@@ -159,7 +141,7 @@ def delete_torrents():
 # torrents page - return full torrents list
 @app.route('/_full_table')
 def full_table():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect("TorrentStats/torrentstats.db")
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -178,7 +160,7 @@ def full_table():
 # torrents page modal - return history for a single torrent
 @app.route('/_single_history_table', methods=['GET', 'POST'])
 def single_history_table():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect("TorrentStats/torrentstats.db")
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -196,7 +178,7 @@ def single_history_table():
 # graphs - return tracker and client ids and names for dropdowns
 @app.route('/_trackers_clients')
 def trackers_clients():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect('TorrentStats/torrentstats.db')
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -225,7 +207,7 @@ def trackers_clients():
 # get daily upload/download stats
 @app.route('/_get_chart_data', methods=['GET', 'POST'])
 def get_chart_data():
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect('TorrentStats/torrentstats.db')
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -328,16 +310,12 @@ def monthly_chart(c):
 	c.execute("SELECT strftime('%Y-%m-01', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded), "
 			  "SUM(uploaded) FROM torrent_history GROUP BY d ORDER BY date DESC")
 	rows = c.fetchall()
-	
+
 	if rows:
 		new_rows = []
 		i = 1
 		num_months = 5
 
-		# if new database with no history, don't calculate anything. just return
-		if len(rows) < 2:
-			return "OK"
-		
 		current = datetime.fromisoformat(rows[0][0])
 		prev_month = ""
 		if rows[i][0]:
@@ -370,53 +348,24 @@ def monthly_chart(c):
 		return "OK"
 
 
-@app.route('/_update_general', methods=['GET', 'POST'])
-def update_general():
+@app.route('/_update_locale', methods=['GET', 'POST'])
+def update_locale():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	r = request.get_json('data')
 
-	if r['settings'][0] == "default":
+	if r['data'] == "default":
 		l = locale.getdefaultlocale()
-		port = 5656
 		config.set('Preferences', 'locale', l[0])
-		config.set('Preferences', 'port', str(port))
-		with open(get_config_path(), 'w') as config_file:
+		with open("TorrentStats/config.ini", 'w') as config_file:
 			config.write(config_file)
-		data = (l[0], port)
-		return jsonify(data=data)
+
+		return jsonify(data=l[0])
 	else:
-		config.set('Preferences', 'locale', r['settings'][0])
-		config.set('Preferences', 'port', r['settings'][1])
-		with open(get_config_path(), 'w') as config_file:
+		config.set('Preferences', 'locale', r['data'])
+		with open("TorrentStats/config.ini", 'w') as config_file:
 			config.write(config_file)
-
-	return jsonify(data="OK")
-
-
-@app.route('/_update_win', methods=['GET', 'POST'])
-def update_win():
-	config = configparser.ConfigParser()
-	config.read(get_config_path())
-
-	r = request.get_json('data')
-	
-	if r['settings'][0] == '1':
-		win_functions.add_to_startup()
-	elif r['settings'][0] == '2':
-		win_functions.remove_startup()
-	
-	if r['settings'][1] == '1':
-		win_functions.add_to_start_menu()
-	elif r['settings'][1] == '2':
-		win_functions.remove_start_menu()
-
-	config.set('Preferences', 'start_at_login', r['settings'][0])
-	config.set('Preferences', 'start_menu_shortcut', r['settings'][1])
-
-	with open(get_config_path(), 'w') as config_file:
-		config.write(config_file)
 
 	return jsonify(data="OK")
 
@@ -424,7 +373,7 @@ def update_win():
 @app.route('/_update_tasks', methods=['GET', 'POST'])
 def update_tasks():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	r = request.get_json('data')
 
@@ -432,7 +381,7 @@ def update_tasks():
 	config.set('Preferences', 'backup_frequency', r['tasks'][1])
 	config.set('Preferences', 'deleted_check_frequency', r['tasks'][2])
 
-	with open(get_config_path(), 'w') as config_file:
+	with open("TorrentStats/config.ini", 'w') as config_file:
 		config.write(config_file)
 
 	return jsonify(data="OK")
@@ -441,7 +390,7 @@ def update_tasks():
 @app.route('/_clients_table')
 def clients_table():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	clients = []
 	for section in config:
@@ -457,7 +406,7 @@ def clients_table():
 @app.route('/_client_edit', methods=['GET', 'POST'])
 def client_edit():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	r = request.get_json('data')
 
@@ -478,7 +427,7 @@ def client_edit():
 			if config[r['data'][0]]['display_name'] != r['data'][1]:
 				config.set(r['data'][0], 'display_name', r['data'][1])
 
-				conn = sqlite3.connect(get_db_path())
+				conn = sqlite3.connect("TorrentStats/torrentstats.db")
 				conn.row_factory = make_dicts
 
 				c = conn.cursor()
@@ -490,7 +439,7 @@ def client_edit():
 			config.set(r['data'][0], 'user', r['data'][3])
 			config.set(r['data'][0], 'pass', r['data'][4])
 
-			with open(get_config_path(), 'w') as config_file:
+			with open("TorrentStats/config.ini", 'w') as config_file:
 				config.write(config_file)
 
 			return jsonify(data="OK")
@@ -501,15 +450,15 @@ def client_edit():
 @app.route('/_client_delete', methods=['GET', 'POST'])
 def client_delete():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	r = request.get_json('data')
 
 	config.remove_section(r['client'])
-	with open(get_config_path(), 'w') as config_file:
+	with open("TorrentStats/config.ini", 'w') as config_file:
 		config.write(config_file)
 
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect("TorrentStats/torrentstats.db")
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -532,7 +481,7 @@ def client_delete():
 @app.route('/_client_add_verify', methods=['GET', 'POST'])
 def client_add_verify():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	r = request.get_json('data')
 
@@ -558,7 +507,7 @@ def client_add_verify():
 @app.route('/_client_add', methods=['GET', 'POST'])
 def client_add():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	r = request.get_json('data')
 
@@ -579,7 +528,7 @@ def client_add():
 	config.set(client_section, 'pass', r['data'][4])
 	config.set(client_section, 'client_type', r['data'][5])
 
-	with open(get_config_path(), 'w') as config_file:
+	with open("TorrentStats/config.ini", 'w') as config_file:
 		config.write(config_file)
 
 	return jsonify(data="OK")
@@ -589,9 +538,9 @@ def client_add():
 @app.route('/index')
 def index():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
-	conn = sqlite3.connect(get_db_path())
+	conn = sqlite3.connect('TorrentStats/torrentstats.db')
 	conn.row_factory = make_dicts
 
 	c = conn.cursor()
@@ -603,7 +552,7 @@ def index():
 @app.route('/torrents')
 def torrents():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	return render_template('torrents.html', title='Torrents', locale=config['Preferences']['locale'])
 
@@ -611,12 +560,10 @@ def torrents():
 @app.route('/settings')
 def settings():
 	config = configparser.ConfigParser()
-	config.read(get_config_path())
+	config.read("TorrentStats/config.ini")
 
 	preferences = (config['Preferences']['locale'], config['Preferences']['torrent_check_frequency'],
-				   config['Preferences']['backup_frequency'], config['Preferences']['deleted_check_frequency'],
-				   config['Preferences']['start_at_login'], config['Preferences']['start_menu_shortcut'],
-				   config['Preferences']['port'])
+				   config['Preferences']['backup_frequency'], config['Preferences']['deleted_check_frequency'])
 
 	return render_template('settings.html', title='Settings', preferences=preferences,
 						   locale=config['Preferences']['locale'])
