@@ -1,6 +1,5 @@
 from flask import Flask
-from pathlib import Path
-import os, os.path, sys, time
+import os.path, sys
 
 if sys.platform == "win32":
 	from src import manage_db

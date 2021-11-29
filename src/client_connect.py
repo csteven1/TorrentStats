@@ -1,9 +1,6 @@
-# import os.path
-# import logging
 import requests
 import json
 from urllib.parse import urlparse
-from requests.exceptions import Timeout, HTTPError, ConnectionError
 
 
 def get_transmission_status(status_code):
