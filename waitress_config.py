@@ -1,6 +1,6 @@
 from waitress import serve
 from src import app
-import os, os.path, sys
+import os.path, sys
 import configparser
 
 config = configparser.ConfigParser()

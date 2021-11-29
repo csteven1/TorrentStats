@@ -5,9 +5,7 @@ from src import client_connect
 import sqlite3
 import locale
 import configparser
-import json
-import sys
-import os, os.path
+import os, os.path, sys
 from datetime import datetime, time, timedelta
 
 if sys.platform == "win32":

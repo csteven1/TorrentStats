@@ -1,23 +1,16 @@
 import sqlite3
-import os
-import os.path
-import time
+import os, os.path, sys
 import configparser
 # import signal
 import logging
-import locale
-import sys
-import inspect
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
+import time, locale
 from datetime import date, datetime, timedelta
 from tzlocal import get_localzone
 from bisect import bisect_left
-# from urllib.parse import urlparse
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers import cron
-# from apscheduler.schedulers.blocking import BlockingScheduler
-# import client_connect
 from src import client_connect
 
 if sys.platform == "win32":
@@ -334,7 +327,7 @@ class ManageDB:
 			# at 00:00 check, the activity date will be logged as the next day when using time.time(). Subtract a
 			# couple of minutes to correct
 			if not int(datetime.fromtimestamp(torrent['activityDate']).strftime('%H%M')):
-				torrent['activityDate'] = torrent['activityDate'] - 180
+				torrent['activityDate'] = torrent['activityDate'] - 90
 
 			# if there's no historical or recent history (brand new torrent), add a new entry with latest stats
 			# entry = torrents id / date / downloaded / uploaded / total downloaded / total uploaded / progress / ratio
@@ -413,7 +406,7 @@ class ManageDB:
 				# if activityDate is 00:00, it'll get grouped as next day when pulled into tables. Subtract a couple of
 				# minutes to correct
 				if not int(datetime.fromtimestamp(torrent['activityDate']).strftime('%H%M')):
-					torrent['activityDate'] = torrent['activityDate'] - 120
+					torrent['activityDate'] = torrent['activityDate'] - 90
 
 			entries = []
 			# if there's no historical or recent history (brand new torrent), add a new entry with latest stats
@@ -897,7 +890,7 @@ class ManageDB:
 			if os.path.getmtime(os.path.join(backup_dir, filename.name)) < (time.time() - 345600):
 				self.backup_database(data_dir, ts_db, logger)
 				return
-		   
+
 	# verify windows options are correct           
 	def verify_win_options(self, config):
 		if config['Preferences']['start_at_login'] == '1':
@@ -968,7 +961,7 @@ class ManageDB:
 
 		conn.commit()
 		conn.close()
-	   
+
 	# return port number
 	def get_port(self, config_file):
 		config = configparser.ConfigParser()
