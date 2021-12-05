@@ -12,13 +12,15 @@ $(document).ready(function() {
 		"stateSave": true,
 		"stateSaveParams": function (settings, data) {
 			data.search.search = "";
+			data.columns.search = "";
 			data.columns[0].visible = false;
-		},			
-		"deferRender": true,
-		"scrollX": true,
-		"colReorder": {
-			fixedColumnsLeft: 1
 		},
+		"stateDuration": 0,
+		"deferRender": true,
+		"autoWidth": false,
+		"scrollX": true,
+		"colReorder": false,
+		"fixedHeader": false,
 		"order": [[1, 'asc']], 
 		"select": {
 			style: 'api',
@@ -90,7 +92,8 @@ $(document).ready(function() {
 			}
 		],
 		"pagingType": "full_numbers",
-		"autoWidth": false,
+		"lengthMenu": [[25, 50, 100, -1], [25, 50, 100, "All"]],
+		"pageLength": 25,
 		"columns": [
 			{
 				"orderable": false,
@@ -168,6 +171,30 @@ $(document).ready(function() {
 			   }	
 			}
 		]
+	});
+	
+	function showActive(checked) {
+		if (checked) {
+			$('#showActive').prop('checked', true);
+			fullTable.column(10).search('^(?!Deleted).*$',true, false).draw();
+		} 
+		else {
+			$('#showActive').prop('checked', false);
+			fullTable.column(10).search('').draw();
+		}
+	}
+	
+	var showActiveChecked = false;
+	if (localStorage.getItem('showActiveOption') != null) {
+		showActiveChecked = $.parseJSON(localStorage.getItem('showActiveOption').toLowerCase());
+		$('#showActive').prop('checked', showActiveChecked);
+	};
+	
+	showActive(showActiveChecked);
+	
+	$('#showActive').on('change', function () {
+		localStorage.setItem('showActiveOption', this.checked);
+		showActive(this.checked);
 	});
 	
 	$('#torrents_table_wrapper .dt-buttons').detach().prependTo('div.dt-button-header');
