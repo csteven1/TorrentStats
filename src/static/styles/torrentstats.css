@@ -96,11 +96,12 @@ body {
 
 .logo {
 	float: left;
-	margin:5px 0px 0px 15%;
+	margin: 0 0 0 15%;
+	padding: 12px 0 5px;
 }
 
 .logo img {
-	height: 50px;
+	height: 28px;
 	background-color: #404040;
 	width: auto;
 }
@@ -115,13 +116,11 @@ body {
 	float: left;
 	padding: 8px 15px;
 	margin-left: 70px;
-    background-color: #404040;
     text-align: center;
     text-decoration: none;
     font-size: 25px;
 	/*transition: 0.5s;*/
-	color: #ffff4d;
-	border-radius: 20px 20px 0px 0px;
+	color: #ffff1a;
 }
 p {
 	font-size: 14px;
@@ -378,7 +377,7 @@ input.dt-button:focus:not(.disabled) {
   border: 1px solid #808080;
   text-shadow: none;
   background: none;
-  background-color: #333333;
+  background-color: #404040;
 }
 button.dt-button span.dt-down-arrow,
 div.dt-button span.dt-down-arrow,
@@ -464,6 +463,7 @@ div.hideButton.active:not(.disabled),
 a.hideButton:active:not(.disabled),
 a.hideButton.active:not(.disabled) {
 	border: 2px solid #999999 !important;
+	background-color: #333333;
 }
 button.hideSelected:not(.disabled),
 div.hideSelected:not(.disabled),
@@ -962,6 +962,9 @@ button:disabled {
 	}
 }
 @media screen and (max-width: 600px) {
+	.logo {
+		margin-left: 10px;
+	}
 	.nav-items {
 		padding-right: 0;
 	}

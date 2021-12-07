@@ -25,14 +25,14 @@ if sys.platform == "win32":
 		template_folder = os.path.join(base_dir, 'templates')
 		app = Flask(__name__, template_folder=template_folder, static_folder=static_folder)
 		o = manage_db.ManageDB()
-		icon = os.path.join(static_folder, 'images', 'app.ico')
+		icon = os.path.join(static_folder, 'images', 'favicon.ico')
 		systray = SysTrayIcon(icon, "TorrentStats", menu_options = (('Open', None, open_browser),), 
 							  on_quit=on_quit_systray, default_menu_index=0)
 		systray.start()                    
 	else:
 		app = Flask(__name__)
 		o = manage_db.ManageDB()
-		icon = os.path.join('src', 'static', 'images', 'app.ico')
+		icon = os.path.join('src', 'static', 'images', 'favicon.ico')
 		systray = SysTrayIcon(icon, "TorrentStats", menu_options = (('Open', None, open_browser),), 
 							  on_quit=on_quit_systray, default_menu_index=0)
 		systray.start()
