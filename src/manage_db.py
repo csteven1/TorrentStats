@@ -3,12 +3,13 @@ import os, os.path, sys
 import configparser
 # import signal
 import logging
+import time, locale
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
-import time, locale
 from datetime import date, datetime, timedelta
 from tzlocal import get_localzone
 from bisect import bisect_left
+# from urllib.parse import urlparse
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers import cron
 from src import client_connect
@@ -780,40 +781,51 @@ class ManageDB:
 							user, pw, logger):
 		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
-
-		c.execute("SELECT torrents.id, torrents.hash, torrents.directory, torrents.name FROM torrents INNER JOIN "
-				  "clients ON torrents.client_id = clients.id WHERE clients.section_name=? AND "
+		
+		c.execute("SELECT torrents.id, torrents.status, torrents.hash, torrents.directory, torrents.name FROM torrents "
+				  "INNER JOIN clients ON torrents.client_id = clients.id WHERE clients.section_name=? AND "
 				  "torrents.status<>'Deleted' ORDER BY torrents.hash", (section_name,))
 		db_hashes = c.fetchall()
 
-		# update status for deleted torrents
+		# update torrents status
 
-		# add the client hashes to a list for sorting and then searching
+		# add the client hashes and status to a list for sorting
+		client_hashes_status = []
 		client_hashes = []
+		client_status = []
 		for torrent in client_torrents:
-			client_hashes.append(torrent['hash'])
+			client_hashes_status.append((torrent['hash'], torrent['state']))
 
-		client_hashes.sort()
-
+		client_hashes_status.sort()
+		# split apart so we can search the hashes
+		for torrent in client_hashes_status:
+			client_hashes.append(torrent[0])
+			client_status.append(torrent[1])
+			
 		# if torrent from db not found in client hashes, change status of torrent.
-		# if there is match, pop to reduce array size for next search
+		# if there is match, check for changed status, then pop to reduce array size for next search
 		status_update = []
 		for db_hash in db_hashes:
-			search = self.index(client_hashes, db_hash[1])
+			search = self.index(client_hashes, db_hash[2])
 			if search == None:
-				status_update.append((db_hash[0],))
-				logger.info("'" + display_name + "': '" + db_hash[3] + "' status changed to 'Deleted'")
+				status_update.append(("Deleted", db_hash[0]))
+				logger.info("'" + display_name + "': '" + db_hash[4] + "' Status: " + db_hash[1] + " -> Deleted")
 			else:
+				if client_status[search] != db_hash[1]:
+					status_update.append((client_status[search], db_hash[0]))
+					logger.info("'" + display_name + "': '" + db_hash[4] + "' Status: " + db_hash[1] + " -> " +
+								client_status[search])
 				client_hashes.pop(search)
+				client_status.pop(search)
 
-		c.executemany("UPDATE torrents SET status='Deleted' WHERE id=?", status_update)
+		c.executemany("UPDATE torrents SET status=? WHERE id=?", status_update)
 
 		# update directories of torrents, checking for any missing torrents in the process
 
 		# add the sorted hashes to a list for searching
 		existing_hashes = []
 		for torrent in db_hashes:
-			existing_hashes.append(torrent[1])
+			existing_hashes.append(torrent[2])
 
 		directory_update = []
 		name_update = []
@@ -830,13 +842,13 @@ class ManageDB:
 				self.add_to_db(torrent, display_name, client_name, section_name, client_type, start_today, qbit_cookie,
 							   ip, c, logger)
 			else:
-				if torrent['downloadDir'] != db_hashes[i][2]:
+				if torrent['downloadDir'] != db_hashes[i][3]:
 					directory_update.append((torrent['downloadDir'], db_hashes[i][0]))
-					logger.info("'" + display_name + "': '" + db_hashes[i][3] + "' updated directory from '" +
-								db_hashes[i][2] + "' to '" + torrent['downloadDir'] + "'")
-				if torrent['name'] != db_hashes[i][3]:
+					logger.info("'" + display_name + "': '" + db_hashes[i][4] + "' Directory: '" +
+								db_hashes[i][3] + "' -> '" + torrent['downloadDir'] + "'")
+				if torrent['name'] != db_hashes[i][4]:
 					name_update.append((torrent['name'], db_hashes[i][0]))
-					logger.info("'" + display_name + "': '" + db_hashes[i][3] + "' renamed to '" + torrent['name'] +
+					logger.info("'" + display_name + "': '" + db_hashes[i][4] + "' renamed to '" + torrent['name'] +
 								"'")
 
 		c.executemany("UPDATE torrents SET directory=? WHERE id=?", directory_update)
@@ -890,7 +902,7 @@ class ManageDB:
 			if os.path.getmtime(os.path.join(backup_dir, filename.name)) < (time.time() - 345600):
 				self.backup_database(data_dir, ts_db, logger)
 				return
-
+		   
 	# verify windows options are correct           
 	def verify_win_options(self, config):
 		if config['Preferences']['start_at_login'] == '1':
@@ -961,7 +973,7 @@ class ManageDB:
 
 		conn.commit()
 		conn.close()
-
+	   
 	# return port number
 	def get_port(self, config_file):
 		config = configparser.ConfigParser()
