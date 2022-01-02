@@ -1,16 +1,44 @@
 from flask import Flask, render_template, jsonify, request
 from operator import itemgetter
 from src import app
-from src import client_connect
+from src import client_connect, manage_db
 import sqlite3
 import locale
 import configparser
 import os, os.path, sys
 from datetime import datetime, time, timedelta
 
+global o
+o = manage_db.ManageDB()
+
 if sys.platform == "win32":
 	from src import win_functions
+	from infi.systray import SysTrayIcon
+	import webbrowser
+	def open_browser(systray):
+		port = o.get_port(o.config_file)
+		if port:
+			webbrowser.open_new_tab('http://localhost:' + port)
+		else:
+			webbrowser.open_new_tab('http://localhost:5656')
 
+	def on_quit_systray(systray):
+		o.close_ts(o.ts_db, o.config_file, o.scheduler, o.logger)
+		
+	base_dir = '.'
+	if getattr(sys, 'frozen', False):
+		base_dir = os.path.join(sys._MEIPASS)
+		static_folder = os.path.join(base_dir, 'static')
+		template_folder = os.path.join(base_dir, 'templates')
+		icon = os.path.join(static_folder, 'images', 'favicon.ico')
+		systray = SysTrayIcon(icon, "TorrentStats", menu_options = (('Open', None, open_browser),), 
+							  on_quit=on_quit_systray, default_menu_index=0)
+		systray.start()                    
+	else:
+		icon = os.path.join('src', 'static', 'images', 'favicon.ico')
+		systray = SysTrayIcon(icon, "TorrentStats", menu_options = (('Open', None, open_browser),), 
+							  on_quit=on_quit_systray, default_menu_index=0)
+		systray.start()
 
 def get_data_path():
 	if sys.platform == "win32":
@@ -125,6 +153,10 @@ def hide_torrents():
 	c.executemany("UPDATE torrents SET hidden = ((hidden | 1) - (hidden & 1)) WHERE id=?", hide)
 	conn.commit()
 	conn.close()
+	# pull in name too
+	# for torrent in hide:
+		# log = "'" + torrent['name'] + "' toggled hidden"
+		# o.print_to_log(log, o.logger)
 
 	return 'OK'
 
@@ -426,13 +458,43 @@ def update_tasks():
 
 	r = request.get_json('data')
 
-	config.set('Preferences', 'torrent_check_frequency', r['tasks'][0])
-	config.set('Preferences', 'backup_frequency', r['tasks'][1])
-	config.set('Preferences', 'deleted_check_frequency', r['tasks'][2])
+	old_tcf = config['Preferences']['torrent_check_frequency']
+	old_bf = config['Preferences']['backup_frequency']
+	old_dcf = config['Preferences']['deleted_check_frequency']
+	
+	new_tcf = r['tasks'][0]
+	new_bf = r['tasks'][1]
+	new_dcf = r['tasks'][2]
 
+	updated_jobs = []
+	log = ""
+	separator = " | "
+	if old_tcf != new_tcf:
+		config.set('Preferences', 'torrent_check_frequency', new_tcf)
+		updated_jobs.append((1, int(new_tcf)))
+		log = "1: {oldtcf}->{newtcf}".format(oldtcf=old_tcf, newtcf=new_tcf)
+	if old_bf != new_bf:
+		config.set('Preferences', 'backup_frequency', new_bf)
+		updated_jobs.append((2, int(new_bf)))
+		if log:
+			log = "{log}{separator}2: {oldbf}->{newbf}".format(log=log, separator=separator, oldbf=old_bf, newbf=new_bf)
+		else:
+			log = "2: {oldbf}->{newbf}".format(oldbf=old_bf, newbf=new_bf)       
+	if old_dcf != new_dcf:
+		config.set('Preferences', 'deleted_check_frequency', new_dcf)
+		updated_jobs.append((3, int(new_dcf)))
+		if log:
+			log = "{log}{separator}3: {olddcf}->{newdcf}".format(log=log, separator=separator, olddcf=old_dcf, 
+															   newdcf=new_dcf)
+		else:
+			log = "3: {olddcf}->{newdcf}".format(olddcf=old_dcf, newdcf=new_dcf)
+	log = "Task Preferences Updated. {log}".format(log=log)
+	
 	with open(get_config_path(), 'w') as config_file:
 		config.write(config_file)
 
+	o.update_jobs(updated_jobs, o.scheduler, log, o.logger)
+	
 	return jsonify(data="OK")
 
 
