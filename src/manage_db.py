@@ -17,10 +17,6 @@ from src import client_connect
 if sys.platform == "win32":
 	from src import win_functions
 
-t_check_frequency = 5
-backup_frequency = 1
-d_check_frequency = 30
-
 
 class ManageDB:
 	def __init__(self):
@@ -35,7 +31,7 @@ class ManageDB:
 		Path(self.log_dir).mkdir(parents=True, exist_ok=True)
 		Path(os.path.join(self.data_dir, "backup")).mkdir(parents=True, exist_ok=True)
 
-		self.logger = logging.getLogger('log')
+		self.logger = logging.getLogger(__name__)
 		self.logger.setLevel(logging.DEBUG)
 
 		formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
@@ -51,46 +47,36 @@ class ManageDB:
 		tz = str(get_localzone())
 		# self.scheduler = BlockingScheduler()
 		self.scheduler = BackgroundScheduler(timezone=tz)
-
-		config = configparser.ConfigParser()
-
+		
 		self.ts_db = os.path.join(self.data_dir, "torrentstats.db")
 		self.config_file = os.path.join(self.data_dir, "config.ini")
 		if os.path.isfile(self.ts_db) == False:
 			self.first_start(self.ts_db, self.config_file, self.logger)
 		else:
 			self.initial_start(self.data_dir, self.ts_db, self.config_file, self.logger)
-
+		
+		config = configparser.ConfigParser()
 		config.read(self.config_file)
+		
+		self.t_check_frequency = config['Preferences']['torrent_check_frequency']
+		self.backup_frequency = config['Preferences']['backup_frequency']
+		self.d_check_frequency = config['Preferences']['deleted_check_frequency']
 
-		global t_check_frequency
-		global backup_frequency
-		global d_check_frequency
+		trigger = cron.CronTrigger(hour='*', minute='*/' + self.t_check_frequency, timezone=tz)
+		self.scheduler.add_job(self.multiple_frequent_checks, trigger=trigger, args=[self.ts_db, self.config_file,
+							   self.scheduler, self.logger], misfire_grace_time=30, id='1')
 
-		t_check_frequency = config['Preferences']['torrent_check_frequency']
-		backup_frequency = config['Preferences']['backup_frequency']
-		d_check_frequency = config['Preferences']['deleted_check_frequency']
-
-		if int(t_check_frequency) > 59:
-			trigger = cron.CronTrigger(hour='*/' + str(int(int(t_check_frequency) / 60)), minute='0', timezone=tz)
-			self.scheduler.add_job(self.multiple_frequent_checks, trigger=trigger, args=[self.ts_db, self.config_file,
-								   self.scheduler, self.logger], misfire_grace_time=30, id='1')
-		else:
-			trigger = cron.CronTrigger(hour='*', minute='*/' + t_check_frequency, timezone=tz)
-			self.scheduler.add_job(self.multiple_frequent_checks, trigger=trigger, args=[self.ts_db, self.config_file,
-								   self.scheduler, self.logger], misfire_grace_time=30, id='1')
-
-		trigger = cron.CronTrigger(day_of_week='*/' + backup_frequency, hour='0', minute='1', second='45', timezone=tz)
+		trigger = cron.CronTrigger(day_of_week='*/' + self.backup_frequency, hour='0', minute='1', second='45', 
+								   timezone=tz)
 		self.scheduler.add_job(self.backup_database, trigger=trigger, args=[self.data_dir, self.ts_db, self.logger], 
 							   misfire_grace_time=30, id='2')
 
-		if int(d_check_frequency) > 59:
-			trigger = cron.CronTrigger(hour='*/' + str(int(int(d_check_frequency) / 60)), minute='0', second='30', 
-									   timezone=tz)
+		if int(self.d_check_frequency) > 59:
+			trigger = cron.CronTrigger(hour='*', minute='0', second='30', timezone=tz)
 			self.scheduler.add_job(self.multiple_update_info, trigger=trigger, args=[self.ts_db, self.config_file, 
 								   self.logger], misfire_grace_time=30, id='3')
 		else:
-			trigger = cron.CronTrigger(hour='*', minute='*/' + d_check_frequency, second='30', timezone=tz)
+			trigger = cron.CronTrigger(hour='*', minute='*/' + self.d_check_frequency, second='30', timezone=tz)
 			self.scheduler.add_job(self.multiple_update_info, trigger=trigger, args=[self.ts_db, self.config_file, 
 								   self.logger], misfire_grace_time=30, id='3')
 
@@ -99,6 +85,9 @@ class ManageDB:
 							   self.logger], misfire_grace_time=30, id='4')
 
 		self.scheduler.start()
+
+	def print_to_log(self, log, logger):
+		logger.info(log)
 
 	def close_ts(self, ts_db, config_file, scheduler, logger):
 		self.multiple_frequent_checks(ts_db, config_file, scheduler, logger)
@@ -185,9 +174,9 @@ class ManageDB:
 			start_at_login = start_menu = "2"
 		port = "5656"
 		config['Preferences'] = {'locale': l[0],
-								 'torrent_check_frequency': str(t_check_frequency),
-								 'backup_frequency': str(backup_frequency),
-								 'deleted_check_frequency': str(d_check_frequency),
+								 'torrent_check_frequency': '5',
+								 'backup_frequency': '1',
+								 'deleted_check_frequency': '30',
 								 'start_at_login': start_at_login,
 								 'start_menu_shortcut': start_menu,
 								 'port': port}
@@ -427,8 +416,7 @@ class ManageDB:
 							if torrent['downloaded']:
 								log_dl = "+" + log_dl
 							logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['doneDate']) +
-										" | d/l:" + log_dl + "b | u/l:0b | total d/l:" + log_dl + "b | " +
-										"total u/l:0b")
+										" | 🡣:" + log_dl + "b | 🡡:0b | total🡣:" + log_dl + "b | " + "total🡡:0b")
 							log_dl = "0"
 
 							if torrent['uploaded']:
@@ -476,8 +464,8 @@ class ManageDB:
 							log_dl = "+" + str(downloaded)
 							log_t_dl = "+" + log_t_dl
 							logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['doneDate']) +
-										" | d/l:" + log_dl + "b | u/l:0b | total d/l:" + log_t_dl + "b | " +
-										"total u/l:" + str(history[1]) + "b")
+										" | 🡣:" + log_dl + "b | 🡡:0b | total🡣:" + log_t_dl + "b | " + "total🡡:" + 
+										str(history[1]) + "b")
 							log_dl = "0"
 							log_t_dl = str(torrent['downloaded'])
 							if uploaded:
@@ -570,9 +558,8 @@ class ManageDB:
 				c.executemany("UPDATE torrent_history SET date=?, downloaded=?, uploaded=?, total_downloaded=?, "
 							  "total_uploaded=?, progress=?, ratio=? WHERE id=?", entries)
 
-		logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['activityDate']) + " | d/l:" +
-					log_dl + "b | u/l:" + log_ul + "b | total d/l:" + log_t_dl + "b | " + "total u/l:" +
-					log_t_ul + "b")
+		logger.info("'" + display_name + "': " + log_name + " | date:" + str(torrent['activityDate']) + " | 🡣:" +
+					log_dl + "b | 🡡:" + log_ul + "b | total🡣:" + log_t_dl + "b | " + "total🡡:" + log_t_ul + "b")
 
 	# Binary search, returning index if there's a match, else None
 	def index(self, a, x):
@@ -688,42 +675,6 @@ class ManageDB:
 		config = configparser.ConfigParser()
 		config.read(config_file)
 
-		global t_check_frequency
-		global backup_frequency
-		global d_check_frequency
-
-		# if scheduled tasks have been changed by the user, modify the jobs
-		if int(t_check_frequency) != int(config['Preferences']['torrent_check_frequency']):
-			logger.info("Torrent check frequency changed by user. Rescheduling job")
-			if int(config['Preferences']['torrent_check_frequency']) > 59:
-				trigger = cron.CronTrigger(hour='*/' +
-										   str(int(int(config['Preferences']['torrent_check_frequency']) / 60)), 
-										   minute='0')
-				scheduler.reschedule_job('1', trigger=trigger)
-			else:
-				trigger = cron.CronTrigger(hour='*', minute='*/' + config['Preferences']['torrent_check_frequency'])
-				scheduler.reschedule_job('1', trigger=trigger)
-			t_check_frequency = config['Preferences']['torrent_check_frequency']
-
-		if int(backup_frequency) != int(config['Preferences']['backup_frequency']):
-			logger.info("Backup frequency changed by user. Rescheduling job")
-			trigger = cron.CronTrigger(day_of_week='*/' + backup_frequency, hour='0', minute='1', second='45')
-			scheduler.reschedule_job('2', trigger=trigger)
-			backup_frequency = config['Preferences']['backup_frequency']
-
-		if int(d_check_frequency) != int(config['Preferences']['deleted_check_frequency']):
-			logger.info("Frequency of checking for deleted torrents changed by user. Rescheduling job")
-			if int(config['Preferences']['deleted_check_frequency']) > 59:
-				trigger = cron.CronTrigger(hour='*/' +
-										   str(int(int(config['Preferences']['deleted_check_frequency']) / 60)), 
-										   minute='0', second='30')
-				scheduler.reschedule_job('3', trigger=trigger)
-			else:
-				trigger = cron.CronTrigger(hour='*', minute='*/' + config['Preferences']['deleted_check_frequency'],
-										   second='30')
-				scheduler.reschedule_job('3', trigger=trigger)
-			d_check_frequency = config['Preferences']['deleted_check_frequency']
-
 		# get all existing client names from the DB
 		conn = sqlite3.connect(ts_db)
 		c = conn.cursor()
@@ -752,7 +703,28 @@ class ManageDB:
 
 		conn.commit()
 		conn.close()
-
+	
+	# reschedule jobs when user updates preferences
+	def update_jobs(self, updated_jobs, scheduler, log, logger):
+		logger.info(log)
+		for job in updated_jobs:
+			if job[0] == 1:
+				trigger = cron.CronTrigger(hour='*', minute='*/' + str(job[1]))
+				scheduler.reschedule_job('1', trigger=trigger)
+			elif job[0] == 2:
+				trigger = cron.CronTrigger(day_of_week='*/' + str(job[1]), hour='0', minute='1', second='45')
+				scheduler.reschedule_job('2', trigger=trigger)
+				
+			elif job[0] == 3:
+				if job[1] > 59:
+					trigger = cron.CronTrigger(hour='*', minute='0', second='30')
+					scheduler.reschedule_job('3', trigger=trigger)
+				else:
+					trigger = cron.CronTrigger(hour='*', minute='*/' + str(job[1]), second='30')
+					scheduler.reschedule_job('3', trigger=trigger)
+		for job in scheduler.get_jobs():
+			logger.info("name: %s, trigger: %s, next run: %s" % (job.name, job.trigger, job.next_run_time))
+			
 	# Update the version name of a client
 	def update_client_version(self, config, config_file, new_version, section):
 		config.set(section, 'client_name', new_version)
