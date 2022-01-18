@@ -3,12 +3,18 @@
 {% block content %}
 <div class="row">
 	<div class="col-4 heading"><h1>Torrents List</h1><p style="margin-bottom:15px;">Click a torrent to view its complete history.</p>
-		<label for="showActive" id="showActiveLabel">Don't Show Deleted Torrents</label>
-		<input type="checkbox" name="showActive" id="showActive">
+		<div id="showActiveContainer">
+			<label for="showActive" id="showActiveLabel">Don't Show Deleted Torrents</label>
+			<input type="checkbox" name="showActive" id="showActive">
+		</div>
 		<p class="hideDeleteText">Hiding a torrent obscures its name and tracker in TorrentStats.
 		Deleting a torrent will delete it from the TorrentStats database.</p>
 	</div>
-	<div class="col-8 dt-button-header"></div>
+	<div class="col-8 dt-button-header">
+		<div id="updateButtonContainer" title="Update torrents and refresh table">
+			<button id="updateButton"><span class="icn-spin">&#8634;</span></button>
+		</div>
+	</div>
 </div>
 <div class="row" id="torrentsTable">
 	<div class="col-12">
