@@ -643,7 +643,19 @@ def client_add():
 		config.write(config_file)
 
 	return jsonify(data="OK")
+	
+@app.route('/_client_add_torrents')
+def client_add_torrents():
+	o.multiple_frequent_checks(o.ts_db, o.config_file, o.scheduler, o.logger)
+	
+	return jsonify(data="OK")
 
+@app.route('/_refresh_torrents')
+def refresh_torrents():
+	o.multiple_frequent_checks(o.ts_db, o.config_file, o.scheduler, o.logger)
+	o.multiple_update_info(o.ts_db, o.config_file, o.logger)
+	
+	return jsonify(data="OK")
 
 @app.route('/')
 @app.route('/index')
