@@ -214,6 +214,23 @@ h4 {
 }
 .heading, .dt-button-header {
 	background-color: #595959;
+	padding-top: 12px;
+}
+.dt-button-header .dt-buttons {
+	padding-top: 5px;
+}
+.icn-spinner {
+	animation: spin-animation 1s infinite;
+	display: inline-block;
+	transform-origin: 50% 60%;
+}
+@keyframes spin-animation {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(359deg);
+	}
 }
 table.dataTable thead th,
 table.dataTable thead td {
@@ -480,6 +497,16 @@ a.deleteSelected:not(.disabled) {
 }
 .deleteSelected:hover:not(.disabled) {
 	background: #e60000 !important;
+}
+#updateButtonContainer {
+	float: right;
+	margin-right: 30px;
+}
+#updateButton {
+	padding: 2px 23px 7px;
+	font-size: 22px;
+	border: 2px solid #00b300;
+	border-radius: 10px;
 }
 #showActiveLabel {
 	margin-right: 5px;

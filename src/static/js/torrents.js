@@ -149,7 +149,7 @@ $(document).ready(function() {
 							return null;
 						}
 						else {
-							return moment.unix(data).format('L');
+							return moment.unix(data).format('LL');
 						}
 					}
 					return data;
@@ -171,6 +171,19 @@ $(document).ready(function() {
 			   }	
 			}
 		]
+	});
+	
+	$('#updateButton').on('click', function() {
+		$('.icn-spin').addClass('icn-spinner');
+		$.ajax ({
+			url: $SCRIPT_ROOT + '/_refresh_torrents',
+			type: 'GET',
+			dataType: "json",
+			success: function(data) {
+				fullTable.ajax.reload();
+				$('.icn-spin').removeClass('icn-spinner');
+			}
+		});
 	});
 	
 	function showActive(checked) {
