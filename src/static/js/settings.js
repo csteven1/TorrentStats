@@ -284,7 +284,9 @@ $(document).ready(function() {
 		]		
 	});
 	$('#refreshClients').on( 'click', function() {
+		console.log("Attempting to reload table");
 		clientsTable.ajax.reload();
+		console.log("Table refreshed");
 	});
 	var editModal = $('#edit-client-modal');
 	var addModal = $('#add-client-modal');
@@ -389,9 +391,22 @@ $(document).ready(function() {
 						clientsTable.ajax.reload();
 						$('#notification').css("right","-20%");
 						$('.notification-header > h4').text("Client edited successfully");
+						$('.notification-body > p').text("Updating torrents");
 						$('.notification-body > p').hide();
 						$('#notification').animate({right: 30});
 						setTimeout(hideNotif, 3000);
+						$.ajax ({
+							url: $SCRIPT_ROOT + '/_refresh_torrents',
+							type: 'GET',
+							dataType: "json",
+							success: function(data) {
+								$('#notification').css("right","-20%");
+								$('.notification-body > p').text("All torrents updated");
+								$('.notification-body > p').show();
+								$('#notification').animate({right: 30});
+								setTimeout(hideNotif, 3000);
+							}
+						});
 					}
 				}
 			});
@@ -409,14 +424,14 @@ $(document).ready(function() {
 				dataType: "json",
 				data: JSON.stringify({"client": data[0]}),
 				success: function(data) {
+					clientsTable.ajax.reload();
 					$('#notification').css("right","-20%");
 					$('.notification-header > h4').text("Client deleted");
 					$('.notification-body > p').hide();
 					$('#notification').animate({right: 30});
 					setTimeout(hideNotif, 3000);
 				}
-			});			
-			clientsTable.ajax.reload();
+			});
 		}
 	} );
 	$('#addClient').on( 'click', function() {
@@ -461,7 +476,7 @@ $(document).ready(function() {
 							$('.addVerifText').text("No response from IP address. Verify your IP address is correct and the client is running");
 						}
 						else if (data.data == 4) {
-							$('.addVerifText').text("A client in TorrentStats is already using that IP address");
+							$('.addVerifText').text("A client in TorrentStats is already connected to that IP address");
 						}
 						else if (data.data == 6) {
 							$('.addVerifText').text("Invalid IP address");
@@ -515,10 +530,22 @@ $(document).ready(function() {
 					clientsTable.ajax.reload();
 					$('#notification').css("right","-20%");
 					$('.notification-header > h4').text("Client added successfully");
-					$('.notification-body > p').text("Your torrents will appear in TorrentStats shortly");
+					$('.notification-body > p').text("Adding torrents...");
 					$('.notification-body > p').show();
 					$('#notification').animate({right: 30});
 					setTimeout(hideNotif, 3000);
+					$.ajax ({
+						url: $SCRIPT_ROOT + '/_refresh_torrents',
+						type: 'GET',
+						dataType: "json",
+						success: function(data) {
+							$('#notification').css("right","-20%");
+							$('.notification-body > p').text("All torrents addded successfully");
+							$('.notification-body > p').show();
+							$('#notification').animate({right: 30});
+							setTimeout(hideNotif, 3000);
+						}
+					});
 				}
 			}
 		});
