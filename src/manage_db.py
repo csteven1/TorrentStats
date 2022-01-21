@@ -169,9 +169,9 @@ class ManageDB:
 
 		config = configparser.ConfigParser()
 		l = locale.getdefaultlocale()
-		start_at_login = start_menu = "0"
+		start_at_login = start_menu = ""
 		if sys.platform == "win32":
-			start_at_login = start_menu = "2"
+			start_at_login = start_menu = "no"
 		port = "5656"
 		config['Preferences'] = {'locale': l[0],
 								 'torrent_check_frequency': '5',
@@ -687,19 +687,23 @@ class ManageDB:
 		# do a check on each client. If it's a new client, add it
 		for section in config:
 			if 'Client' in section:
-				client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
-															  config[section]['pass'], config[section]['client_type'],
-															  config[section]['display_name'],
-															  config[section]['client_name'], logger)
-				if client_torrents:
-					if section not in existing_clients:
-						self.add_client_to_db(ts_db, client_torrents, config[section]['display_name'],
-											  config[section]['client_name'], section, config[section]['client_type'],
-											  config[section]['ip'], config[section]['user'], config[section]['pass'],
-											  logger)
-					self.frequent_check(ts_db, client_torrents, config[section]['display_name'],
-										config[section]['client_name'], section, config[section]['client_type'],
-										config[section]['ip'], config[section]['user'], config[section]['pass'], logger)
+				if config[section]['sync'] == 'yes':
+					client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
+																  config[section]['pass'],
+																  config[section]['client_type'],
+																  config[section]['display_name'],
+																  config[section]['client_name'], logger)
+					if client_torrents:
+						if section not in existing_clients:
+							self.add_client_to_db(ts_db, client_torrents, config[section]['display_name'],
+												  config[section]['client_name'], section, 
+												  config[section]['client_type'],
+												  config[section]['ip'], config[section]['user'],
+												  config[section]['pass'], logger)
+						self.frequent_check(ts_db, client_torrents, config[section]['display_name'],
+											config[section]['client_name'], section, config[section]['client_type'],
+											config[section]['ip'], config[section]['user'], config[section]['pass'],
+											logger)
 
 		conn.commit()
 		conn.close()
@@ -739,14 +743,15 @@ class ManageDB:
 
 		for section in config:
 			if 'Client' in section:
-				new_version = client_connect.compare_client_version(config[section]['ip'], config[section]['user'],
-																	config[section]['pass'],
-																	config[section]['client_type'],
-																	config[section]['display_name'],
-																	config[section]['client_name'], logger)
-				if new_version:
-					self.update_client_version(config, config_file, new_version, section)
-					logger.info("Updated application version of " + config[section]['display_name'])
+				if config[section]['sync'] == 'yes':
+					new_version = client_connect.compare_client_version(config[section]['ip'], config[section]['user'],
+																		config[section]['pass'],
+																		config[section]['client_type'],
+																		config[section]['display_name'],
+																		config[section]['client_name'], logger)
+					if new_version:
+						self.update_client_version(config, config_file, new_version, section)
+						logger.info("Updated application version of " + config[section]['display_name'])
 
 	# Change status to 'Deleted' for deleted torrents, update directories of torrents and add missing torrents
 	def update_torrent_info(self, ts_db, client_torrents, display_name, client_name, section_name, client_type, ip,
@@ -835,15 +840,17 @@ class ManageDB:
 
 		for section in config:
 			if 'Client' in section:
-				client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
-															  config[section]['pass'], config[section]['client_type'],
-															  config[section]['display_name'],
-															  config[section]['client_name'], logger)
-				if client_torrents:
-					self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
-											 config[section]['client_name'], section, config[section]['client_type'],
-											 config[section]['ip'], config[section]['user'], config[section]['pass'],
-											 logger)
+				if config[section]['sync'] == 'yes':
+					client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
+																  config[section]['pass'],
+																  config[section]['client_type'],
+																  config[section]['display_name'],
+																  config[section]['client_name'], logger)
+					if client_torrents:
+						self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
+												 config[section]['client_name'], section,
+												 config[section]['client_type'], config[section]['ip'],
+												 config[section]['user'], config[section]['pass'], logger)
 
 	# Backup database
 	def backup_database(self, data_dir, ts_db, logger):
@@ -905,36 +912,40 @@ class ManageDB:
 		# do a check on each client
 		for section in config:
 			if 'Client' in section:
-				client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
-															  config[section]['pass'], config[section]['client_type'],
-															  config[section]['display_name'],
-															  config[section]['client_name'], logger)
-				if client_torrents:
-					# if it's a new client, add it to the DB
-					if section not in clients:
-						self.add_client_to_db(ts_db, client_torrents, config[section]['display_name'],
-											  config[section]['client_name'], section, config[section]['client_type'],
-											  config[section]['ip'], config[section]['user'], config[section]['pass'],
-											  logger)
-					# check for activity since last run
-					self.initial_check(ts_db, client_torrents, config[section]['display_name'],
-									   config[section]['client_name'], section, config[section]['client_type'],
-									   config[section]['ip'], config[section]['user'], config[section]['pass'], logger)
-					logger.info("'" + config[section]['display_name'] + "': Updating all torrent info...")
-					self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
-											 config[section]['client_name'], section, config[section]['client_type'],
-											 config[section]['ip'], config[section]['user'], config[section]['pass'],
-											 logger)
+				if config[section]['sync'] == 'yes':
+					client_torrents = client_connect.get_torrents(config[section]['ip'], config[section]['user'],
+																  config[section]['pass'], 
+																  config[section]['client_type'],
+																  config[section]['display_name'],
+																  config[section]['client_name'], logger)
+					if client_torrents:
+						# if it's a new client, add it to the DB
+						if section not in clients:
+							self.add_client_to_db(ts_db, client_torrents, config[section]['display_name'],
+												  config[section]['client_name'], section, 
+												  config[section]['client_type'], config[section]['ip'], 
+												  config[section]['user'], config[section]['pass'], logger)
+						# check for activity since last run
+						self.initial_check(ts_db, client_torrents, config[section]['display_name'],
+										   config[section]['client_name'], section, config[section]['client_type'],
+										   config[section]['ip'], config[section]['user'], config[section]['pass'],
+										   logger)
+						logger.info("'" + config[section]['display_name'] + "': Updating all torrent info...")
+						self.update_torrent_info(ts_db, client_torrents, config[section]['display_name'],
+												 config[section]['client_name'], section,
+												 config[section]['client_type'], config[section]['ip'],
+												 config[section]['user'], config[section]['pass'], logger)
 
-					new_version = client_connect.compare_client_version(config[section]['ip'], config[section]['user'],
-																		config[section]['pass'],
-																		config[section]['client_type'],
-																		config[section]['display_name'],
-																		config[section]['client_name'], logger)
-					if new_version:
-						self.update_client_version(config, config_file, new_version, section)
-						logger.info("'" + config[section]['display_name'] + "': Updated application version")
-					logger.info("Update complete")
+						new_version = client_connect.compare_client_version(config[section]['ip'], 
+																			config[section]['user'],
+																			config[section]['pass'],
+																			config[section]['client_type'],
+																			config[section]['display_name'],
+																			config[section]['client_name'], logger)
+						if new_version:
+							self.update_client_version(config, config_file, new_version, section)
+							logger.info("'" + config[section]['display_name'] + "': Updated application version")
+						logger.info("Update complete")
 
 		self.check_backups(data_dir, ts_db, logger)
 

@@ -533,15 +533,22 @@ a.deleteSelected:not(.disabled) {
 	border-top: 1px solid #666666;
 	background-color: #595959;
 }
-.text-wrap{
+.text-wrap {
     white-space:normal;
 }
-.width-filename{
+.width-filename {
     max-width: 700px;
 	min-width: 250px;
 }
-.width-tracker-client{
-	width: 185px;
+.width-tracker {
+	width: 155px;
+}
+.width-client {
+	width: 115px;
+}
+.width-directory {
+	max-width: 700px;
+	min-width: 200px;
 }
 #torrents_table_first {
 	border-radius: 5px 0px 0px 5px;
@@ -694,14 +701,23 @@ select {
 .downloaded, .offlineClient ul li, .offlineClient ul li::before, .offClientTooltip {
 	color: #ff6666;
 }
+.offlineClient ul li {
+	width: 75px;
+}
 .uploaded, .activeClient ul li, .activeClient ul li::before {
 	color: #71da71;
 }
-.activeClient ul, .offlineClient ul {
+.pausedClient ul, .pausedClient ul li::before {
+	color: #ff8000;
+}
+.pausedClient ul li {
+	width: 55px;
+}
+.activeClient ul, .offlineClient ul, .pausedClient ul {
   	list-style: none;
 	padding: 0;
 }
-.activeClient ul li::before, .offlineClient ul li::before {
+.activeClient ul li::before, .offlineClient ul li::before, .pausedClient ul li::before {
 	content: "\2022";
 	font-weight: bold;
 	display: inline-block; 
@@ -849,11 +865,24 @@ button:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
 }
-#editClient, #deleteClient {
+#editClient, #deleteClient, #syncPaused {
 	padding: 4px 15px;
 }
 #deleteClient:hover {
 	background-color: #d41111;
+}
+.syncSetting {
+	font-size: 13px;
+	border-radius: 15px;
+	border: none;
+	margin: 0;
+	padding: 0px 2px 2px 3px;
+}
+.syncResume {
+	background-color: #ff8000;
+}
+.syncPaused {
+	background-color: #00b300;
 }
 .buttonBar {
 	margin-top: 20px;
@@ -963,6 +992,7 @@ button:disabled {
 }
 #clients_table {
 	float: left;
+	width: 500px;
 }
 @media screen and (max-width: 1366px) {
 	.date-modal-content {

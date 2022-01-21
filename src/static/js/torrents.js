@@ -140,7 +140,7 @@ $(document).ready(function() {
 				if (( row[1] === 0 ) && (( type === 'display') || (type === 'filter'))) {
 					return null;
 				}
-				return "<div class='text-wrap width-tracker-client'>" + data.replace(/\./g, '.<wbr>') + "</div>";
+				return "<div class='text-wrap width-tracker'>" + data.replace(/\./g, '.<wbr>') + "</div>";
 			   }	 
 			},
 			{ data: 9, width: "62px", render: function(data, type, row) {
@@ -155,19 +155,31 @@ $(document).ready(function() {
 					return data;
 				}
 			},
-			{ data: 10, render: function(data, type, row) {
-				return "<div class='text-wrap width-tracker-client'>" + data.replace(/\./g, '.<wbr>') + "</div>";
+			{ data: 10, width: "62px", render: function(data, type, row) {
+					if ( type === 'display' || type === 'filter' ) {
+						if (data === null) {
+							return null;
+						}
+						else {
+							return moment.unix(data).format('LL');
+						}
+					}
+					return data;
+				}
+			},
+			{ data: 11, render: function(data, type, row) {
+				return "<div class='text-wrap width-client'>" + data.replace(/\./g, '.<wbr>') + "</div>";
 			   }	 
 			},
-			{ data: 11, width: "66px" },
-			{ data: 12, render: function(data, type, row) {
+			{ data: 12, width: "66px" },
+			{ data: 13, render: function(data, type, row) {
 				if (( row[1] === 0 ) && (( type === 'display') || (type === 'filter'))) {
 					return null;
 				}
 				else if (data == null) {
 					return "N/A";
 				}
-				return "<div class='text-wrap width-filename'>" + data.replace(/\./g, '.<wbr>') + "</div>";
+				return "<div class='text-wrap width-directory'>" + data.replace(/\./g, '.<wbr>') + "</div>";
 			   }	
 			}
 		]
@@ -189,11 +201,11 @@ $(document).ready(function() {
 	function showActive(checked) {
 		if (checked) {
 			$('#showActive').prop('checked', true);
-			fullTable.column(10).search('^(?!Deleted).*$',true, false).draw();
+			fullTable.column(11).search('^(?!Deleted).*$',true, false).draw();
 		} 
 		else {
 			$('#showActive').prop('checked', false);
-			fullTable.column(10).search('').draw();
+			fullTable.column(11).search('').draw();
 		}
 	}
 	

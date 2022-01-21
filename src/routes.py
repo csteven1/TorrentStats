@@ -194,9 +194,9 @@ def full_table():
 
 	c = conn.cursor()
 	c.execute("SELECT t.id, t.hidden, t.name, t.size, th.progress, th.total_downloaded, th.total_uploaded, th.ratio, "
-			  "trackers.name, th.date, clients.display_name, t.status, t.directory, MAX(th.date) FROM (((torrents t "
-			  "INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON t.client_id = clients.id) "
-			  "INNER JOIN torrent_history th ON t.id = th.torrent_id) GROUP BY th.torrent_id")
+			  "trackers.name, th.date, t.added_date, clients.display_name, t.status, t.directory, MAX(th.date) FROM "
+			  "(((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON t.client_id = "
+			  "clients.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) GROUP BY th.torrent_id")
 	rows = c.fetchall()
 
 	conn.commit()
@@ -432,14 +432,14 @@ def update_win():
 
 	r = request.get_json('data')
 	
-	if r['settings'][0] == '1':
+	if r['settings'][0] == 'yes':
 		win_functions.add_to_startup()
-	elif r['settings'][0] == '2':
+	elif r['settings'][0] == 'no':
 		win_functions.remove_startup()
 	
-	if r['settings'][1] == '1':
+	if r['settings'][1] == 'yes':
 		win_functions.add_to_start_menu()
-	elif r['settings'][1] == '2':
+	elif r['settings'][1] == 'no':
 		win_functions.remove_start_menu()
 
 	config.set('Preferences', 'start_at_login', r['settings'][0])
@@ -506,13 +506,36 @@ def clients_table():
 	clients = []
 	for section in config:
 		if 'Client' in section:
-			active_client = client_connect.test_client(config[section]['ip'], config[section]['user'],
-													   config[section]['pass'], config[section]['client_type'])
+			active_client = 0
+			if config[section]['sync'] == 'yes':
+				active_client = client_connect.test_client(config[section]['ip'], config[section]['user'],
+														   config[section]['pass'], config[section]['client_type'])
+			else:
+				active_client = 7
 			clients.append((section, config[section]['display_name'], config[section]['client_name'],
 							config[section]['ip'], config[section]['user'], config[section]['pass'], active_client))
 
 	return jsonify(data=clients)
-
+	
+@app.route('/_sync_setting', methods=['GET', 'POST'])
+def sync_setting():
+	config = configparser.ConfigParser()
+	config.read(get_config_path())
+	
+	client = request.get_json('data')
+	change = ""
+	
+	if config[client['section']]['sync'] == 'yes':
+		config.set(client['section'], 'sync', 'no')
+		change = "paused"
+	else:
+		config.set(client['section'], 'sync', 'yes')
+		change = "resumed"
+	
+	with open(get_config_path(), 'w') as config_file:
+				config.write(config_file)
+				
+	return jsonify(data=change)
 
 @app.route('/_client_edit', methods=['GET', 'POST'])
 def client_edit():
@@ -638,6 +661,7 @@ def client_add():
 	config.set(client_section, 'user', r['data'][3])
 	config.set(client_section, 'pass', r['data'][4])
 	config.set(client_section, 'client_type', r['data'][5])
+	config.set(client_section, 'sync', 'yes')
 
 	with open(get_config_path(), 'w') as config_file:
 		config.write(config_file)
@@ -654,6 +678,12 @@ def client_add_torrents():
 def refresh_torrents():
 	o.multiple_frequent_checks(o.ts_db, o.config_file, o.scheduler, o.logger)
 	o.multiple_update_info(o.ts_db, o.config_file, o.logger)
+	
+	return jsonify(data="OK")
+
+@app.route('/_resync')
+def resync():
+	o.initial_start(o.data_dir, o.ts_db, o.config_file, o.logger)
 	
 	return jsonify(data="OK")
 
