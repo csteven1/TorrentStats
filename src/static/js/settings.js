@@ -187,8 +187,8 @@ $(document).ready(function() {
 	});
 	
 	$('#saveWin').on( 'click', function() {
-		var saveStartAtLogin = $('#startAtLogin').prop('checked') ? '1' : '2';
-		var saveStartMenu = $('#startMenu').prop('checked') ? '1' : '2';
+		var saveStartAtLogin = $('#startAtLogin').prop('checked') ? 'yes' : 'no';
+		var saveStartMenu = $('#startMenu').prop('checked') ? 'yes' : 'no';
 		var winSettings = [saveStartAtLogin, saveStartMenu];
 		
 		$.ajax ({
@@ -258,10 +258,19 @@ $(document).ready(function() {
 		"searching": false,
 		"autoWidth": false,
 		"columns": [
+			{ data: 6, render: function(data, type, row) {
+					if (data === 7) {
+						return '<button class="syncSetting syncPaused" title="Resume syncing">&#x23F5;</button>';
+					}
+					else {
+						return '<button class="syncSetting syncResume" title="Pause syncing">&#x23F8;</button>';
+					}
+				}
+			},
 			{ data: 1 },
 			{ data: 2 },
 			{ data: 3 },
-			{ data: 6, width: "80px", render: function(data, type, row) {
+			{ data: 6, render: function(data, type, row) {
 					if (data == 0) {
 						return "<div class='activeClient'><ul><li>Active</li></ul></div>";
 					}
@@ -272,7 +281,10 @@ $(document).ready(function() {
 						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>Connected to Deluge but failed authentication. Verify your username and password are correct</span></span></li></ul></div>";
 					}
 					else if (data == 3) {
-						return "<div class='offlineClient'><ul><li style='width:75px;'>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>No response. Verify your IP address is correct and the client is running</span></span></li></ul></div>";
+						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>No response. Verify your IP address is correct and the client is running</span></span></li></ul></div>";
+					}
+					else if (data == 7) {
+						return "<div class='pausedClient'><ul><li>Paused</li></ul></div>";
 					}
 					else {
 						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>Unknown error</span></span></li></ul></div>";
@@ -283,11 +295,7 @@ $(document).ready(function() {
 			{ data: null, defaultContent: '<button id="deleteClient">Delete</button>' },
 		]		
 	});
-	$('#refreshClients').on( 'click', function() {
-		console.log("Attempting to reload table");
-		clientsTable.ajax.reload();
-		console.log("Table refreshed");
-	});
+	
 	var editModal = $('#edit-client-modal');
 	var addModal = $('#add-client-modal');
 
@@ -320,7 +328,41 @@ $(document).ready(function() {
 			$('.addVerif2').hide();
 		}
 	});
-	var sectionName = "";
+	
+	$('#clients_table tbody').on( 'click', '.syncSetting', function () {
+		var section = clientsTable.row( $(this).parents('tr') ).data();
+
+		$.ajax ({
+			url: $SCRIPT_ROOT + '/_sync_setting',
+			type: 'POST',
+			dataType: "json",
+			data: JSON.stringify({"section": section[0]}),
+			success: function(data) {
+				clientsTable.ajax.reload();
+				$('#notification').css("right","-20%");
+				$('.notification-header > h4').text("Client sync " + data.data);
+				$('.notification-body > p').hide();
+				$('#notification').animate({right: 30});
+				setTimeout(hideNotif, 3000);
+				if (data.data == "resumed") {
+					$.ajax ({
+						url: $SCRIPT_ROOT + '/_resync',
+						type: 'GET',
+						dataType: "json",
+						success: function(data) {
+							$('#notification').css("right","-20%");
+							$('.notification-body > p').text("All torrents updated");
+							$('.notification-body > p').show();
+							$('#notification').animate({right: 30});
+							setTimeout(hideNotif, 3000);
+						}
+					});
+				}
+			}
+		});
+	});
+	
+	var sectionNameEdit = "";
 	$('#clients_table tbody').on( 'click', '#editClient', function () {
 		var data = clientsTable.row( $(this).parents('tr') ).data();
 
@@ -339,7 +381,7 @@ $(document).ready(function() {
 		$('#edit-ip').val(data[3]);
 		$('#edit-username').val(user);
 		$('#edit-pass').val(pass);
-		sectionName = data[0];
+		sectionNameEdit = data[0];
 
 		editModal.show();
 	} );
@@ -350,7 +392,7 @@ $(document).ready(function() {
 		var user = $('#edit-username').val();
 		var pass = $('#edit-pass').val();
 
-		var editVerify = [sectionName, nickname, ip, user, pass];
+		var editVerify = [sectionNameEdit, nickname, ip, user, pass];
 
 		if (!ip) {
 			$('.editVerifText').text("Invalid IP address");
