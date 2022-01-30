@@ -99,6 +99,28 @@
 		<h3>Most Active Trackers</h3><p class="numDaysTitle">Last 30 days</p>
 		<div id="trackerChartContainer" style="width:100%;height:400px;"></div>
 	</div>
+</div>
+<div class="row allTimeContainer">
+	<div class="col-6 graphTitle">
+		<h3>All-Time Highs</h3>
+		<div id="allTimeTableContainer">
+			<div class="buttonBar">
+				<button id="all_time_24_btn" disabled>24hr</button><button id="all_time_month_btn">Month</button>
+			</div>
+			<table id="all_time_table" class="display nowrap">
+			<thead>
+				<tr>
+					<th></th>
+					<th>Date</th>
+					<th>Downloaded</th>
+					<th>Uploaded</th>
+					<th>Total</th>
+				</tr>
+			</thead>
+			</table>
+		</div>
+	</div>
+</div>
 <div class="row">
 	<div class="col-12">
 		<button id="refreshHighchart">Clear localStorage</button>
