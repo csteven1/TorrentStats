@@ -6,10 +6,16 @@ import sqlite3
 import locale
 import configparser
 import os, os.path, sys
+import signal
 from datetime import datetime, time, timedelta
 
 global o
 o = manage_db.ManageDB()
+
+def sig_handler(signum, frame):
+	o.close_ts(o.ts_db, o.config_file, o.scheduler, o.logger)
+
+signal.signal(signal.SIGTERM, sig_handler)
 
 if sys.platform == "win32":
 	from src import win_functions
@@ -198,7 +204,7 @@ def full_table():
 			  "(((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON t.client_id = "
 			  "clients.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) GROUP BY th.torrent_id")
 	rows = c.fetchall()
-
+	
 	conn.commit()
 	conn.close()
 
@@ -397,7 +403,64 @@ def monthly_chart(c):
 		new_rows.reverse()
 		return new_rows
 	else:
-		return "OK"
+		return rows
+		
+@app.route('/_all_time_table', methods=['GET', 'POST'])
+def all_time_table():
+	conn = sqlite3.connect(get_db_path())
+	conn.row_factory = make_dicts
+
+	c = conn.cursor()
+	
+	all_time = []
+	r = request.get_json('data')
+
+	if r == 24:
+		c.execute("SELECT strftime('%Y/%m/%d', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded) AS "
+				  "down, SUM(uploaded) AS up, (SUM(downloaded+uploaded)) AS total FROM torrent_history GROUP BY d "
+				  "ORDER BY down DESC LIMIT 1")
+		down = c.fetchone()
+		if down:
+			all_time.append(("Downloaded", down[0], down[1], down[2], down[3]))
+			
+			c.execute("SELECT strftime('%Y/%m/%d', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded) AS "
+					  "down, SUM(uploaded) AS up, (SUM(downloaded+uploaded)) AS total FROM torrent_history GROUP BY d "
+					  "ORDER BY up DESC LIMIT 1")
+			up = c.fetchone()
+			all_time.append(("Uploaded", up[0], up[1], up[2], up[3]))
+			
+			c.execute("SELECT strftime('%Y/%m/%d', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded), "
+					  "SUM(uploaded), (SUM(downloaded+uploaded)) AS total FROM torrent_history GROUP BY d ORDER BY total "
+					  "DESC LIMIT 1")
+			total = c.fetchone()
+			all_time.append(("Total", total[0], total[1], total[2], total[3]))
+		
+	elif r == 30:
+		c.execute("SELECT strftime('%Y/%m', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded) AS down, "
+			      "SUM(uploaded) AS up, (SUM(downloaded+uploaded)) AS total FROM torrent_history GROUP BY d ORDER BY "
+				  "down DESC LIMIT 1")
+		down = c.fetchone()
+		if down:
+			all_time.append(("Downloaded", down[0], down[1], down[2], down[3]))
+
+			c.execute("SELECT strftime('%Y/%m', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded) AS down, "
+					  "SUM(uploaded) AS up, (SUM(downloaded+uploaded)) AS total FROM torrent_history GROUP BY d ORDER BY "
+					  "up DESC LIMIT 1")
+
+			up = c.fetchone()
+			all_time.append(("Uploaded", up[0], up[1], up[2], up[3]))
+
+			c.execute("SELECT strftime('%Y/%m', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded), "
+					  "SUM(uploaded), (SUM(downloaded+uploaded)) AS total FROM torrent_history GROUP BY d ORDER BY total "
+					  "DESC LIMIT 1")
+
+			total = c.fetchone()
+			all_time.append(("Total", total[0], total[1], total[2], total[3]))
+	
+	conn.commit()
+	conn.close()
+	
+	return jsonify(data=all_time)
 
 
 @app.route('/_update_general', methods=['GET', 'POST'])

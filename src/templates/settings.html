@@ -30,7 +30,7 @@
 			</div>
 		</div>
 		<div class="buttonBar">
-			<button class="settingButton" id="resetGeneral">Reset to System Default</button><button class="settingButton" id="cancelGeneral" disabled>Cancel</button><button class="settingButton" id="saveGeneral" style="margin-right:0;" disabled>Apply</button>
+			<button class="settingButton" id="resetGeneral">Reset to System Default</button><button class="settingButton" id="cancelGeneral" disabled>Cancel</button><button class="settingButton" id="saveGeneral" disabled>Apply</button>
 		</div>
 		<div class="winOptions">
 			<h2 style="margin-top:20px;padding-bottom:20px">Windows Options</h2>
@@ -51,7 +51,7 @@
 				</div>
 			</div>
 			<div class="buttonBar">
-				<button class="settingButton" id="cancelWin" disabled>Cancel</button><button class="settingButton" id="saveWin" style="margin-right:0;" disabled>Apply</button>
+				<button class="settingButton" id="cancelWin" disabled>Cancel</button><button class="settingButton" id="saveWin" disabled>Apply</button>
 			</div>
 		</div>
 		<h2 style="margin-top:20px;padding-bottom:20px">Scheduled Tasks</h2>
@@ -99,7 +99,7 @@
 		<div class="buttonBar">
 			<button class="settingButton" id="cancelTasks" disabled>Cancel</button><button class="settingButton" id="saveTasks" disabled>Apply</button>
 		</div>
-		<h2 style="margin-top:20px;padding-bottom:20px">Clients</h2>
+		<h2 style="margin-top:20px;margin-bottom:20px">Clients</h2>
 		<table id="clients_table" class="display">
 			<thead>
 				<tr>
@@ -168,6 +168,18 @@
 				</div>
 			</div>
 		</div>
+		<div id="delete-client-modal" class="modal-background">
+			<div class="modal-content delete-client-modal-content">
+				<div class="delete-client-modal-header">
+					<span class="delete-client-modal-close">&times;</span>
+					<h4>Delete Client</h4>
+				</div>
+				<div class="modal-body">
+					<p class="delete-modal-info">The full history of this client will be deleted from TorrentStats. Are you sure?</p>
+					<div class="modalButtonBar"><button class="settingButton" id="cancelDelete">Cancel</button><button class="settingButton" id="deleteConfirm">Yes</button></div>
+				</div>
+			</div>
+		</div>
 		<div id="add-client-modal" class="modal-background">
 			<div class="modal-content add-client-modal-content">
 				<div class="add-client-modal-header">
@@ -227,18 +239,6 @@
 						</div>
 					</div>
 				</div>
-			</div>
-		</div>
-	</div>
-	<div id="notification">
-		<div class="notification-content">
-			<div class="notification-header">
-				<span class="notification-close">&times;</span>
-				<h4>Notification</h4>
-			</div>
-			<div class="notification-body">
-				<p id="notifText">Notification text</p>
-				<button id="closeNotif">OK</button>
 			</div>
 		</div>
 	</div>

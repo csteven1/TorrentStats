@@ -166,12 +166,12 @@ $(document).ready(function() {
 				if (( row[1] === 0 ) && (( type === 'display') || (type === 'filter'))) {
 					return null;
 				}
-				return "<div class='text-wrap width-tracker-client'>" + data.replace(/\./g, '.<wbr>') + "</div>";
+				return "<div class='text-wrap width-tracker'>" + data.replace(/\./g, '.<wbr>') + "</div>";
 			   }	 
 			},
 			//client
 			{ data: 11, render: function(data, type, row) {
-				return "<div class='text-wrap width-tracker-client'>" + data.replace(/\./g, '.<wbr>') + "</div>";
+				return "<div class='text-wrap width-client'>" + data.replace(/\./g, '.<wbr>') + "</div>";
 			   }	 
 			},
 			//status
@@ -184,7 +184,7 @@ $(document).ready(function() {
 				else if (data == null) {
 					return "N/A";
 				}
-				return "<div class='text-wrap width-filename'>" + data.replace(/\./g, '.<wbr>') + "</div>";
+				return "<div class='text-wrap width-directory'>" + data.replace(/\./g, '.<wbr>') + "</div>";
 			   }	
 			}
 		]
@@ -648,6 +648,89 @@ $(document).ready(function() {
 			$('#days').val(numDays);
 		}
 		
+	});
+	
+	var allTimeSelection = 24;
+	var allTimeRow = "";
+	
+	var allTimeTable = $('#all_time_table').DataTable( {
+		"ajax": {
+			"url": $SCRIPT_ROOT + '/_all_time_table',
+			"contentType": "application/json",
+			"type": 'POST',
+			"data": function(d) {
+				return JSON.stringify(d.date = allTimeSelection);
+			}
+		},
+		"ordering": false,
+		"info": false,
+		"paging": false,
+		"searching": false,
+		"autoWidth": false,
+		"columns": [
+			{ data: 0, width: "73px", render: function(data, type, row) {
+					allTimeRow = data;
+					if (allTimeRow == "Downloaded") {
+						return "<span style='color:#ff6666;'>" + data + "</span>";
+					}
+					else if (allTimeRow == "Uploaded") {
+						return "<span style='color:#71da71;'>" + data + "</span>";
+					}
+					else if (allTimeRow == "Total") {
+						return "<span style='color:#66ccff;'>" + data + "</span>";
+					}
+				}
+			},
+			{ data: 1, render: function(data, type, row) {
+					if (allTimeSelection == 24) {
+						return moment(data, 'YYYY/MM/DD').format('dddd, MMM Do YYYY');
+					}
+					else if (allTimeSelection == 30) {
+						return moment(data, 'YYYY/MM').format('MMMM YYYY');
+					}
+				}
+			},
+			{ data: 2, width: "73px", render: function(data, type, row) {
+					if (allTimeRow == "Downloaded") {
+						return "<span style='color:#ff6666;'>" + formatBytes(data) + "</span>";
+					}
+					else {
+						return formatBytes(data);
+					}
+				}
+			},
+			{ data: 3, width: "56px", render: function(data, type, row) {
+					if (allTimeRow == "Uploaded") {
+						return "<span style='color:#71da71;'>" + formatBytes(data) + "</span>";
+					}
+					else {
+						return formatBytes(data);
+					}
+				}
+			},
+			{ data: 4, width: "56px", render: function(data, type, row) {
+					if (allTimeRow == "Total") {
+						return "<span style='color:#66ccff;'>" + formatBytes(data) + "</span>";
+					}
+					else {
+						return formatBytes(data);
+					}
+				}
+			},
+		]
+	});
+	
+	$('#all_time_24_btn').on( 'click', function () {
+		$('#all_time_24_btn').prop('disabled', true);
+		$('#all_time_month_btn').prop('disabled', false);
+		allTimeSelection = 24;
+		allTimeTable.ajax.reload();
+	});
+	$('#all_time_month_btn').on( 'click', function () {
+		$('#all_time_month_btn').prop('disabled', true);
+		$('#all_time_24_btn').prop('disabled', false);
+		allTimeSelection = 30;
+		allTimeTable.ajax.reload();
 	});
 	
 	$('#date_table tbody').on( 'click', 'button', function () {
