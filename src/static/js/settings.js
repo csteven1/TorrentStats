@@ -13,8 +13,8 @@ function initParams(param) {
 	tCheckFrequency = param[1];
 	backupFrequency = param[2];
 	dCheckFrequency = param[3];
-	startAtLogin = parseInt(param[4]);
-	startMenuShortcut = parseInt(param[5]);
+	startAtLogin = param[4];
+	startMenuShortcut = param[5];
 	port = parseInt(param[6]);
 }
 
@@ -82,6 +82,12 @@ $(document).ready(function() {
 			$('#saveGeneral').prop('disabled', true);
 		}
 	});
+
+	//return Saved button to previous
+	function saved(elmnt, cls, txt) {
+		$(elmnt).removeClass(cls);
+		$(elmnt).text(txt);
+	}
 	// save general settings
 	$('#saveGeneral').on( 'click', function() {
 		var saveLocale = $('#localeSetting option:selected').val();
@@ -97,32 +103,13 @@ $(document).ready(function() {
 				$('#cancelGeneral, #saveGeneral').prop('disabled', true);
 				locale = saveLocale;
 				port = savePort;
-				$('#notification').css("right","-20%");
-				$('.notification-header > h4').text("Locale updated");
-				$('.notification-body > p').hide();
-				$('#notification').animate({right: 30});
-				setTimeout(hideNotif, 3000);
+				$('#saveGeneral').addClass('savedButton');
+				$('#saveGeneral').text("✔ Saved");
+				setTimeout(saved, 1500, '#saveGeneral', 'savedButton', 'Apply');
 			}
 		});
 	});
-	$('#resetLocale').on( 'click', function() {
-		$.ajax ({
-			url: $SCRIPT_ROOT + '/_update_locale',
-			type: 'POST',
-			dataType: "json",
-			data: JSON.stringify({"data": "default"}),
-			success: function(data) {
-				$('#cancelGeneral, #saveGeneral').prop('disabled', true);
-				resetLocale(data.data);
-				locale = data.data;
-				$('#notification').css("right","-20%");
-				$('.notification-header > h4').text("Locale updated");
-				$('.notification-body > p').hide();
-				$('#notification').animate({right: 30});
-				setTimeout(hideNotif, 3000);
-			}				
-		});
-	});
+	
 	// reset general settings to system defaults
 	$('#resetGeneral').on( 'click', function() {
 		var settings = ["default", "default"];
@@ -137,11 +124,9 @@ $(document).ready(function() {
 				resetLocale(data.data[0]);
 				locale = data.data[0];
 				$('#port').val(data.data[1]);
-				$('#notification').css("right","-20%");
-				$('.notification-header > h4').text("Locale updated");
-				$('.notification-body > p').hide();
-				$('#notification').animate({right: 30});
-				setTimeout(hideNotif, 3000);
+				$('#resetGeneral').addClass('savedButton');
+				$('#resetGeneral').text("✔ Saved");
+				setTimeout(saved, 1500, '#resetGeneral', 'savedButton', 'Reset to System Default');
 			}				
 		});
 	});
@@ -155,20 +140,20 @@ $(document).ready(function() {
 	});
 	
 	function setWinOptions(startAtLogin, startMenuShortcut) {
-		if (startAtLogin) {
+		if (startAtLogin != "0") {
 			$('.winOptions').show();
 			$('.winSetting').css('display', 'flex');
 		}
 		else {
 			return;
 		}
-		if (startAtLogin == 1) {
+		if (startAtLogin == 'yes') {
 			$('#startAtLogin').prop('checked',true);
 		}
 		else {
 			$('#startAtLogin').prop('checked',false);
 		}
-		if (startMenuShortcut == 1) {
+		if (startMenuShortcut == 'yes') {
 			$('#startMenu').prop('checked',true);
 		}
 		else {
@@ -200,18 +185,12 @@ $(document).ready(function() {
 				$('#cancelWin, #saveWin').prop('disabled', true);
 				startAtLogin = saveStartAtLogin;
 				startMenuShortcut = saveStartMenu;
-				$('#notification').css("right","-20%");
-				$('.notification-header > h4').text("Windows Settings Updated");
-				$('.notification-body > p').hide();
-				$('#notification').animate({right: 30});
-				setTimeout(hideNotif, 3000);
+				$('#saveWin').addClass('savedButton');
+				$('#saveWin').text("✔ Saved");
+				setTimeout(saved, 1500, '#saveWin', 'savedButton', 'Apply');
 			}
 		});
 	});
-	
-	function hideNotif() {
-		$('#notification').animate({right: "-20%"});
-	}
 	
 	// fill scheduled tasks values
 	$('#tCheckFrequency').val(tCheckFrequency);
@@ -231,11 +210,9 @@ $(document).ready(function() {
 			data: JSON.stringify({"tasks": tasks}),
 			success: function(data) {
 				$('#cancelTasks, #saveTasks').prop('disabled', true);
-				$('#notification').css("right","-20%");
-				$('.notification-header > h4').text("Tasks updated");
-				$('.notification-body > p').hide();
-				$('#notification').animate({right: 30});
-				setTimeout(hideNotif, 3000);
+				$('#saveTasks').addClass('savedButton');
+				$('#saveTasks').text("✔ Saved");
+				setTimeout(saved, 1500, '#saveTasks', 'savedButton', 'Apply');
 			}
 		});
 	});
@@ -297,12 +274,18 @@ $(document).ready(function() {
 	});
 	
 	var editModal = $('#edit-client-modal');
+	var deleteModal = $('#delete-client-modal');
 	var addModal = $('#add-client-modal');
 
 	$('.edit-client-modal-close, #cancelEdit').on('click', function() {
 		editModal.hide();
 		$('.editVerif').hide();
 	});
+	
+	$('.delete-client-modal-close, #cancelDelete').on('click', function() {
+		deleteModal.hide();
+	});
+	
 	$('.add-client-modal-close, #cancelAdd').on('click', function() {
 		addModal.hide();
 		$('#add-ip').val('');
@@ -317,6 +300,9 @@ $(document).ready(function() {
 		if (e.target == editModal[0]) {
 			editModal.hide();
 			$('.editVerif').hide();
+		}
+		else if (e.target == deleteModal[0]) {
+			deleteModal.hide();
 		}
 		else if (e.target == addModal[0]) {
 			addModal.hide();
@@ -339,22 +325,12 @@ $(document).ready(function() {
 			data: JSON.stringify({"section": section[0]}),
 			success: function(data) {
 				clientsTable.ajax.reload();
-				$('#notification').css("right","-20%");
-				$('.notification-header > h4').text("Client sync " + data.data);
-				$('.notification-body > p').hide();
-				$('#notification').animate({right: 30});
-				setTimeout(hideNotif, 3000);
 				if (data.data == "resumed") {
 					$.ajax ({
 						url: $SCRIPT_ROOT + '/_resync',
 						type: 'GET',
 						dataType: "json",
 						success: function(data) {
-							$('#notification').css("right","-20%");
-							$('.notification-body > p').text("All torrents updated");
-							$('.notification-body > p').show();
-							$('#notification').animate({right: 30});
-							setTimeout(hideNotif, 3000);
 						}
 					});
 				}
@@ -442,11 +418,9 @@ $(document).ready(function() {
 							type: 'GET',
 							dataType: "json",
 							success: function(data) {
-								$('#notification').css("right","-20%");
-								$('.notification-body > p').text("All torrents updated");
-								$('.notification-body > p').show();
-								$('#notification').animate({right: 30});
-								setTimeout(hideNotif, 3000);
+								$('#editClient').addClass('savedButton');
+								$('#editClient').text("✔");
+								setTimeout(saved, 1000, '#editClient', 'savedButton', 'Edit');
 							}
 						});
 					}
@@ -458,23 +432,19 @@ $(document).ready(function() {
 	$('#clients_table tbody').on( 'click', '#deleteClient', function () {
 		var data = clientsTable.row( $(this).parents('tr') ).data();
 
-		var confirmed = confirm("The entire history of this client will be deleted from TorrentStats. Are you sure?");
-		if (confirmed == true) {
+		deleteModal.show();
+		$('#deleteConfirm').on( 'click', function() {
 			$.ajax ({
 				url: $SCRIPT_ROOT + '/_client_delete',
 				type: 'POST',
 				dataType: "json",
 				data: JSON.stringify({"client": data[0]}),
 				success: function(data) {
+					deleteModal.hide();
 					clientsTable.ajax.reload();
-					$('#notification').css("right","-20%");
-					$('.notification-header > h4').text("Client deleted");
-					$('.notification-body > p').hide();
-					$('#notification').animate({right: 30});
-					setTimeout(hideNotif, 3000);
 				}
 			});
-		}
+		});
 	} );
 	$('#addClient').on( 'click', function() {
 		$('.addPage1').show();
@@ -570,29 +540,19 @@ $(document).ready(function() {
 					$('.addVerif2').hide();
 					
 					clientsTable.ajax.reload();
-					$('#notification').css("right","-20%");
-					$('.notification-header > h4').text("Client added successfully");
-					$('.notification-body > p').text("Adding torrents...");
-					$('.notification-body > p').show();
-					$('#notification').animate({right: 30});
-					setTimeout(hideNotif, 3000);
+					$('#addClient').addClass('savedButton');
+					$('#addClient').text("✔ Adding...");
 					$.ajax ({
 						url: $SCRIPT_ROOT + '/_refresh_torrents',
 						type: 'GET',
 						dataType: "json",
 						success: function(data) {
-							$('#notification').css("right","-20%");
-							$('.notification-body > p').text("All torrents addded successfully");
-							$('.notification-body > p').show();
-							$('#notification').animate({right: 30});
-							setTimeout(hideNotif, 3000);
+							$('#addClient').text("✔ Saved");
+							setTimeout(saved, 1500, '#addClient', 'savedButton', 'Add New Client');
 						}
 					});
 				}
 			}
 		});
-	});
-	$('#closeNotif, .notification-close').on('click', function() {
-		hideNotif();
 	});
 });
