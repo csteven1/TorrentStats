@@ -76,75 +76,134 @@ def date_table():
 	tracker_id = r[1]
 	client_id = r[2]
 	date = r[3]
+	date_type = r[4]
+	if date_type == 24:
+		strf_format = '%Y/%m/%d'
+		strf_date = datetime.fromtimestamp(r[3]).strftime(strf_format)
+	elif date_type == 30:
+		strf_format = '%Y/%m'
+		strf_date = datetime.fromtimestamp(r[3]).strftime(strf_format)
 
 	if not tracker_id:
 		if not client_id:
 			if series == 0:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON "
-						  "t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND th.downloaded>0",
-						  (date, date + 86400))
-			else:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th "
-						  "ON t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND th.uploaded>0",
-						  (date, date + 86400))
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, "
+						  "clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', "
+						  "'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
+						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = "
+						  "th.torrent_id) WHERE d=? AND th.downloaded IS NOT NULL GROUP BY t.id", (strf_format, 
+																								   strf_date))
+			elif series == 1:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), th.total_downloaded, "
+						  "MAX(th.total_uploaded), th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
+						  "t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', 'localtime')) AS d FROM "
+						  "(((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON "
+						  "t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) WHERE d=? "
+						  "AND th.uploaded IS NOT NULL GROUP BY t.id", (strf_format, strf_date))
+			elif series == 2:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), MAX(th.total_uploaded), th.ratio, t.size, th.progress, "
+						  "trackers.name, clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, "
+						  "'unixepoch', 'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = "
+						  "trackers.id) INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th "
+						  "ON t.id = th.torrent_id) WHERE d=? AND (th.downloaded IS NOT NULL OR th.uploaded IS NOT "
+						  "NULL) GROUP BY t.id", (strf_format, strf_date))
 		else:
 			if series == 0:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th "
-						  "ON t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND t.client_id=? AND "
-						  "th.downloaded>0", (date, date + 86400, client_id))
-			else:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON "
-						  "t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND t.client_id=? AND th.uploaded>0",
-						  (date, date + 86400, client_id))
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, "
+						  "clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', "
+						  "'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
+						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = "
+						  "th.torrent_id) WHERE d=? t.client_id=? AND th.downloaded IS NOT NULL GROUP BY t.id", 
+						  (strf_format, strf_date, client_id))
+			elif series == 1:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), th.total_downloaded, "
+						  "MAX(th.total_uploaded), th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
+						  "t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', 'localtime')) AS d FROM "
+						  "(((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON "
+						  "t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) WHERE d=? "
+						  "t.client_id=? AND th.uploaded IS NOT NULL GROUP BY t.id", (strf_format, strf_date, 
+																					  client_id))
+			elif series == 2:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), MAX(th.total_uploaded), th.ratio, t.size, th.progress, "
+						  "trackers.name, clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, "
+						  "'unixepoch', 'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = "
+						  "trackers.id) INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th "
+						  "ON t.id = th.torrent_id) WHERE d=? t.client_id=? AND (th.downloaded IS NOT NULL OR "
+						  "th.uploaded IS NOT NULL) GROUP BY t.id", (strf_format, strf_date, client_id))
 	else:
 		if not client_id:
 			if series == 0:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON "
-						  "t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND t.tracker_id=? AND th.downloaded>0",
-						  (date, date + 86400, tracker_id))
-			else:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON "
-						  "t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND t.tracker_id=? AND th.uploaded>0",
-						  (date, date + 86400, tracker_id))
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, "
+						  "clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', "
+						  "'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
+						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = "
+						  "th.torrent_id) WHERE d=? AND t.tracker_id=? AND th.downloaded IS NOT NULL GROUP BY t.id", 
+						  (strf_format, strf_date, tracker_id))
+			elif series == 1:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), th.total_downloaded, "
+						  "MAX(th.total_uploaded), th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
+						  "t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', 'localtime')) AS d FROM "
+						  "(((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON "
+						  "t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) WHERE d=? "
+						  "AND t.tracker_id=? AND th.uploaded IS NOT NULL GROUP BY t.id", (strf_format, strf_date, 
+																						   tracker_id))
+			elif series == 2:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), MAX(th.total_uploaded), th.ratio, t.size, th.progress, "
+						  "trackers.name, clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, "
+						  "'unixepoch', 'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = "
+						  "trackers.id) INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th "
+						  "ON t.id = th.torrent_id) WHERE d=? AND t.tracker_id=? AND (th.downloaded IS NOT NULL OR "
+						  "th.uploaded IS NOT NULL) GROUP BY t.id", (strf_format, strf_date, tracker_id))
 		else:
 			if series == 0:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON "
-						  "t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND t.tracker_id=? AND t.client_id=? "
-						  "AND th.downloaded>0", (date, date + 86400, tracker_id, client_id))
-			else:
-				c.execute("SELECT t.id, t.hidden, t.name, th.downloaded, th.uploaded, th.total_downloaded, "
-						  "th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
-						  "t.status, t.directory FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
-						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON "
-						  "t.id = th.torrent_id) WHERE th.date BETWEEN ? AND ? AND t.tracker_id=? AND t.client_id=? "
-						  "AND th.uploaded>0", (date, date + 86400, tracker_id, client_id))
-
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), th.total_uploaded, th.ratio, t.size, th.progress, trackers.name, "
+						  "clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', "
+						  "'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) "
+						  "INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = "
+						  "th.torrent_id) WHERE d=? AND t.tracker_id=? AND t.client_id=? AND th.downloaded IS NOT NULL "
+						  "GROUP BY t.id", (strf_format, strf_date, tracker_id, client_id))
+			elif series == 1:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), th.total_downloaded, "
+						  "MAX(th.total_uploaded), th.ratio, t.size, th.progress, trackers.name, clients.display_name, "
+						  "t.status, t.directory, strftime(?, datetime(th.date, 'unixepoch', 'localtime')) AS d FROM "
+						  "(((torrents t INNER JOIN trackers ON t.tracker_id = trackers.id) INNER JOIN clients ON "
+						  "t.client_id = clients.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) WHERE d=? "
+						  "AND t.tracker_id=? AND t.client_id=? AND th.uploaded IS NOT NULL GROUP BY t.id", 
+						  (strf_format, strf_date, tracker_id, client_id))
+			elif series == 2:
+				c.execute("SELECT t.id, t.hidden, t.name, SUM(th.downloaded), SUM(th.uploaded), "
+						  "MAX(th.total_downloaded), MAX(th.total_uploaded), th.ratio, t.size, th.progress, "
+						  "trackers.name, clients.display_name, t.status, t.directory, strftime(?, datetime(th.date, "
+						  "'unixepoch', 'localtime')) AS d FROM (((torrents t INNER JOIN trackers ON t.tracker_id = "
+						  "trackers.id) INNER JOIN clients ON t.client_id = clients.id) INNER JOIN torrent_history th "
+						  "ON t.id = th.torrent_id) WHERE d=? AND t.tracker_id=? AND t.client_id=? AND (th.downloaded "
+						  "IS NOT NULL OR th.uploaded IS NOT NULL) GROUP BY t.id", (strf_format, strf_date, tracker_id,
+																					client_id))
+	
 	rows = c.fetchall()
+	new_rows = []
+	for row in rows:
+		if series == 0:
+			if row[3] != 0:
+				new_rows.append(row)
+		elif series == 1:
+			if row[4] != 0:
+				new_rows.append(row)
+		elif series == 2:
+			if not (row[3] == 0 and row[4] == 0):
+				new_rows.append(row)
+			
 	conn.commit()
 	conn.close()
 
-	return jsonify(data=rows)
+	return jsonify(data=new_rows)
 
 
 @app.route('/_hide_torrents', methods=['GET', 'POST'])
@@ -268,32 +327,32 @@ def get_chart_data():
 	r = request.get_json('data')
 
 	if str(r['data'][0]).isdigit():
-		d = (datetime.combine(datetime.today(), time.min)) - timedelta(days=int(r['data'][0]) - 1)
-		date_limit = datetime.timestamp(d)
+		date_limit = r['data'][0]
 		tracker_id = r['data'][1]
 		client_id = r['data'][2]
 
 		if not tracker_id:
 			if not client_id:
 				c.execute("SELECT strftime('%Y/%m/%d', datetime(date, 'unixepoch', 'localtime')) AS d, SUM(downloaded),"
-						  " SUM(uploaded) FROM torrent_history WHERE date>? GROUP BY d ORDER BY date DESC",
-						  (date_limit,))
+						  " SUM(uploaded) FROM torrent_history WHERE d IS NOT NULL GROUP BY d ORDER BY d DESC LIMIT"
+						  " ?", (date_limit,))
 			else:
 				c.execute("SELECT strftime('%Y/%m/%d', datetime(th.date, 'unixepoch', 'localtime')) AS d, "
 						  "SUM(th.downloaded), SUM(th.uploaded) FROM torrent_history th INNER JOIN torrents t ON "
-						  "th.torrent_id = t.id WHERE th.date>? AND t.client_id=? GROUP BY d ORDER BY th.date DESC",
-						  (date_limit, client_id))
+						  "th.torrent_id = t.id WHERE d IS NOT NULL AND t.client_id=? GROUP BY d ORDER BY d DESC "
+						  "LIMIT ?", (client_id, date_limit))
+				  
 		else:
 			if not client_id:
 				c.execute("SELECT strftime('%Y/%m/%d', datetime(th.date, 'unixepoch', 'localtime')) AS d, "
 						  "SUM(th.downloaded), SUM(th.uploaded) FROM torrent_history th INNER JOIN torrents t ON "
-						  "th.torrent_id = t.id WHERE th.date>? AND t.tracker_id=? GROUP BY d ORDER BY th.date DESC",
-						  (date_limit, tracker_id))
+						  "th.torrent_id = t.id WHERE d IS NOT NULL AND t.tracker_id=? GROUP BY d ORDER BY d DESC "
+						  "LIMIT ?", (tracker_id, date_limit))
 			else:
 				c.execute("SELECT strftime('%Y/%m/%d', datetime(th.date, 'unixepoch', 'localtime')) AS d, "
 						  "SUM(th.downloaded), SUM(th.uploaded) FROM torrent_history th INNER JOIN torrents t ON "
-						  "th.torrent_id = t.id WHERE th.date>? AND t.tracker_id=? AND t.client_id=? GROUP BY d ORDER "
-						  "BY th.date DESC", (date_limit, tracker_id, client_id))
+						  "th.torrent_id = t.id WHERE d IS NOT NULL AND t.tracker_id=? AND t.client_id=? GROUP BY d "
+						  "ORDER BY d DESC LIMIT ?", (tracker_id, client_id, date_limit))
 
 		daily_data = c.fetchall()
 		daily_max = 0
@@ -324,18 +383,20 @@ def get_chart_data():
 			# find the max value of both columns
 			daily_max = max(max(daily_data, key=itemgetter(1))[1], max(daily_data, key=itemgetter(2))[2])
 
+			tracker_d = (datetime.combine(datetime.today(), time.min)) - timedelta(days=int(r['data'][0]) - 1)
+			tracker_date_limit = datetime.timestamp(tracker_d)
 			# get the data for the tracker chart
 			if not client_id:
 				c.execute("SELECT trackers.id, trackers.name, SUM(th.downloaded), SUM(th.uploaded), "
 						  "SUM(th.downloaded+th.uploaded) AS total FROM ((torrents t INNER JOIN trackers ON "
 						  "t.tracker_id = trackers.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) WHERE "
-						  "th.date>? GROUP BY t.tracker_id ORDER BY total DESC LIMIT 6", (date_limit,))
+						  "th.date>? GROUP BY t.tracker_id ORDER BY total DESC LIMIT 6", (tracker_date_limit,))
 			else:
 				c.execute("SELECT trackers.id, trackers.name, SUM(th.downloaded), SUM(th.uploaded), "
 						  "SUM(th.downloaded+th.uploaded) AS total FROM ((torrents t INNER JOIN trackers ON "
 						  "t.tracker_id = trackers.id) INNER JOIN torrent_history th ON t.id = th.torrent_id) WHERE "
 						  "th.date>? AND t.client_id=? GROUP BY t.tracker_id ORDER BY total DESC LIMIT 6",
-						  (date_limit, client_id))
+						  (tracker_date_limit, client_id))
 
 			tracker_data = c.fetchall()
 			tracker_max = max(max(tracker_data, key=itemgetter(2))[2], max(tracker_data, key=itemgetter(3))[3])
