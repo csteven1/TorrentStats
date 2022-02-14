@@ -669,7 +669,7 @@ select {
 }
 .date-modal-close, .torrent-modal-close,
 .edit-client-modal-close, .add-client-modal-close,
-.delete-client-modal-close, .notification-close {
+.delete-client-modal-close {
   float: right;
   font-size: 26px;
   font-weight: bold;
@@ -677,10 +677,10 @@ select {
 
 .date-modal-close:hover, .torrent-modal-close:hover,
 .edit-client-modal-close:hover, .add-client-modal-close:hover,
-.notification-close:hover, .delete-client-modal-close:hover,
+.delete-client-modal-close:hover,
 .date-modal-close:focus, .torrent-modal-close:focus,
 .edit-client-modal-close:focus, .add-client-modal-close:focus,
-.notification-close:focus, .delete-client-modal-close:focus {
+.delete-client-modal-close:focus {
   color: #cccccc;
   text-decoration: none;
   cursor: pointer;
@@ -688,7 +688,7 @@ select {
 
 .torrent-modal-header, .date-modal-header,
 .edit-client-modal-header, .add-client-modal-header,
-.delete-client-modal-header, .notification-header {
+.delete-client-modal-header {
   padding: 2px 16px;
   background-color: #666666;
   color: #f2f2f2;
@@ -699,11 +699,9 @@ select {
 .delete-client-modal-header h4 {
 	margin: 8px 0;
 }
-.notification-header h4 {
-	margin: 6px 0;
-}
 .date-modal-header .downloaded,
-.date-modal-header .uploaded {
+.date-modal-header .uploaded,
+.date-modal-header .totalDownUp {
 	font-size: 13px;
 }
 .date-modal-info {
@@ -719,13 +717,16 @@ select {
   right: 33% !important;
 }
 .downloaded, .offlineClient ul li, .offlineClient ul li::before, .offClientTooltip {
-	color: #ff6666;
+	color: #ff6666 !important;
 }
 .offlineClient ul li {
 	width: 75px;
 }
 .uploaded, .activeClient ul li, .activeClient ul li::before {
-	color: #71da71;
+	color: #71da71 !important;
+}
+.totalDownUp {
+	color: #66ccff !important;
 }
 .pausedClient ul, .pausedClient ul li::before {
 	color: #ff8000;
@@ -835,29 +836,6 @@ select {
 }
 #addClient {
 	width: 149px;
-}
-#notification {
-	position: fixed;
-	bottom: 20px;
-	right: -20%;
-	z-index: 1;
-	width: 240px;
-	background-color: #4d4d4d;
-	margin: auto;
-	padding: 0;
-	box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
-	border-radius: 5px;
-}
-.notification-body {
-	padding: 8px 10px;
-}
-.notification-body p {
-	margin-bottom: 7px;
-}
-.notification-body button {
-	display: block;
-	margin: 0 auto;
-	padding: 6px 20px;
 }
 .settingsNav {
 	width: 130px;

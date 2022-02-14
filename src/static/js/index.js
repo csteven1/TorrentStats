@@ -57,9 +57,10 @@ $(document).ready(function() {
 	var clickedDate = 0;
 	var tracker = null;
 	var client = null;
+	var dateType = 24;
 	
 	function dailyModalParams() {
-		return [selectedSeries,tracker,client,clickedDate];
+		return [selectedSeries,tracker,client,clickedDate,dateType];
 	}
 	
 	var dateTable = $('#date_table').DataTable( {
@@ -274,22 +275,19 @@ $(document).ready(function() {
 				point: {
 					events: {
 						click: function () {
+							dateType = 24;
 							clickedDate = this.category/1000;
 							var displayDate = moment.unix(clickedDate).format("dddd, Do MMMM YYYY");
 							if (this.series.options.id == 0) {
 								$('.date-modal-header > h4').html("Downloaded on " + displayDate + " <span class='downloaded'>&#9660;" + this.y + " " + sizes[dailySizeFormat] + "</span>");
-								if (this.series.options.id != selectedSeries) {
-									dateTable.order( [[1, 'desc']] ).draw();
-								}
+								dateTable.order( [[1, 'desc']] ).draw();
 								selectedSeries = 0;
 								dateTable.ajax.reload();
 								dateModal.show();
 							}
 							else {
 								$('.date-modal-header > h4').html("Uploaded on " + displayDate + " <span class='uploaded'>&#9650;" + this.y + " " + sizes[dailySizeFormat] + "</span>");
-								if (this.series.options.id != selectedSeries) {
-									dateTable.order( [[2, 'desc']] ).draw();
-								}
+								dateTable.order( [[2, 'desc']] ).draw();
 								selectedSeries = 1;
 								dateTable.ajax.reload();
 								dateModal.show();
@@ -671,28 +669,28 @@ $(document).ready(function() {
 			{ data: 0, width: "73px", render: function(data, type, row) {
 					allTimeRow = data;
 					if (allTimeRow == "Downloaded") {
-						return "<span style='color:#ff6666;'>" + data + "</span>";
+						return "<button type='button' class='downloaded' id='openButton'>" + data + "</button";
 					}
 					else if (allTimeRow == "Uploaded") {
-						return "<span style='color:#71da71;'>" + data + "</span>";
+						return "<button type='button' class='uploaded' id='openButton'>" + data + "</button>";
 					}
 					else if (allTimeRow == "Total") {
-						return "<span style='color:#66ccff;'>" + data + "</span>";
+						return "<button type='button' class='totalDownUp' id='openButton'>" + data + "</button>";
 					}
 				}
 			},
 			{ data: 1, render: function(data, type, row) {
 					if (allTimeSelection == 24) {
-						return moment(data, 'YYYY/MM/DD').format('dddd, MMM Do YYYY');
+						return "<button type='button' id='openButton'>" + moment(data, 'YYYY/MM/DD').format('dddd, MMM Do YYYY') + "</button>";
 					}
 					else if (allTimeSelection == 30) {
-						return moment(data, 'YYYY/MM').format('MMMM YYYY');
+						return "<button type='button' id='openButton'>" + moment(data, 'YYYY/MM').format('MMMM YYYY') + "</button>";
 					}
 				}
 			},
 			{ data: 2, width: "73px", render: function(data, type, row) {
 					if (allTimeRow == "Downloaded") {
-						return "<span style='color:#ff6666;'>" + formatBytes(data) + "</span>";
+						return "<button type='button' class='downloaded' id='openButton'>" + formatBytes(data) + "</button>";
 					}
 					else {
 						return formatBytes(data);
@@ -701,7 +699,7 @@ $(document).ready(function() {
 			},
 			{ data: 3, width: "56px", render: function(data, type, row) {
 					if (allTimeRow == "Uploaded") {
-						return "<span style='color:#71da71;'>" + formatBytes(data) + "</span>";
+						return "<button type='button' class='uploaded' id='openButton'>" + formatBytes(data) + "</button>";
 					}
 					else {
 						return formatBytes(data);
@@ -710,7 +708,7 @@ $(document).ready(function() {
 			},
 			{ data: 4, width: "56px", render: function(data, type, row) {
 					if (allTimeRow == "Total") {
-						return "<span style='color:#66ccff;'>" + formatBytes(data) + "</span>";
+						return "<button type='button' class='totalDownUp' id='openButton'>" + formatBytes(data) + "</button>";
 					}
 					else {
 						return formatBytes(data);
@@ -731,6 +729,48 @@ $(document).ready(function() {
 		$('#all_time_24_btn').prop('disabled', false);
 		allTimeSelection = 30;
 		allTimeTable.ajax.reload();
+	});
+	
+	$('#all_time_table tbody').on( 'click', 'button', function () {
+		var data = allTimeTable.row( $(this).parents('tr') ).data();
+		tracker = null;
+		client = null;
+		var headerText = "";
+		var displayDate = "";
+		
+		if (allTimeSelection == 24) {
+			dateType = 24;
+			clickedDate = parseInt(moment(data[1], 'YYYY/MM/DD').format('X'));
+			headerText = "on ";
+			displayDate = moment(data[1], 'YYYY/MM/DD').format('dddd, Do MMMM YYYY');
+		}
+		else if (allTimeSelection == 30) {
+			dateType = 30;
+			clickedDate = parseInt(moment(data[1], 'YYYY/MM').format('X'));
+			headerText = "in ";
+			displayDate = moment(data[1], 'YYYY/MM').format('MMMM YYYY');
+		}
+		if (data[0] == "Downloaded") {
+			$('.date-modal-header > h4').html("Downloaded " + headerText + displayDate + " <span class='downloaded'>&#9660;" + formatBytes(data[2]) + "</span>");
+			dateTable.order( [[1, 'desc']] ).draw();
+			selectedSeries = 0;
+			dateTable.ajax.reload();
+			dateModal.show();
+		}
+		else if (data[0] == "Uploaded") {
+			$('.date-modal-header > h4').html("Uploaded " + headerText + displayDate + " <span class='uploaded'>&#9650;" + formatBytes(data[3]) + "</span>");
+			dateTable.order( [[2, 'desc']] ).draw();
+			selectedSeries = 1;
+			dateTable.ajax.reload();
+			dateModal.show();
+		}
+		else if (data[0] == "Total") {
+			$('.date-modal-header > h4').html("Downloaded and Uploaded " + headerText + displayDate + " <span class='totalDownUp'>" + formatBytes(data[4]) + "</span>");
+			dateTable.order( [[0, 'asc']] ).draw();
+			selectedSeries = 2;
+			dateTable.ajax.reload();
+			dateModal.show();
+		}
 	});
 	
 	$('#date_table tbody').on( 'click', 'button', function () {
