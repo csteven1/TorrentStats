@@ -1,6 +1,9 @@
+import xmlrpc.client
+import xmlrpc
 import requests
 import json
 from urllib.parse import urlparse
+from requests.exceptions import Timeout, HTTPError, ConnectionError
 
 
 def get_transmission_status(status_code):
@@ -192,6 +195,38 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 
 		except:
 			return
+			
+	elif client == "rtorrent":
+		server = xmlrpc.client.ServerProxy(ip)
+		try:
+			torrents = server.d.multicall2("", "main", "d.name=", "d.bytes_done=", "d.up.total=", 
+										   "d.timestamp.finished=", "d.load_date=", "d.size_bytes=", "d.directory=", 
+										   "d.ratio=", "d.state=", "d.hash=")
+			all_torrents = []
+			if torrents:
+				for torrent in torrents:
+					trackers = server.t.multicall(torrent[9], "t.id=", "t.url=")
+					tracker = urlparse(trackers[0][0]).hostname
+					state = ""
+					if torrent[3] and torrent[8]:
+						state = "Seeding"
+					elif not torrent[3] and torrent[8]:
+						state = "Downloading"
+					else:
+						state = "Paused"
+					progress = 1
+					if not torrent[3]:
+						progress = round(torrent[1] / torrent[5], 4)
+					all_torrents.append({'name': torrent[0], 'downloaded': torrent[1], 'uploaded': torrent[2], 
+											  'doneDate': torrent[3], 'addedDate': torrent[4], 'progress': progress,
+											  'size': torrent[5], 'downloadDir': torrent[6], 'tracker': tracker, 
+											  'ratio': torrent[7], 'state': state, 'hash': torrent[9]})
+				return all_torrents
+		except ConnectionRefusedError:
+			logger.error("Connection Refused error connecting to '" + display_name + "'. (" + client_name + "). Ensure "
+						 "the IP and port are correct.")
+		except TimeoutError:
+			logger.error("Timed out. Ensure the IP and port are correct and the client is online.")
 
 
 # attempt to connect to the client. If successful, return the version
@@ -247,11 +282,21 @@ def test_client(ip, user, pw, client):
 
 		except:
 			return 3
+	
+	elif client == "rtorrent":
+		server = xmlrpc.client.ServerProxy(ip)
+		try:
+			version = server.system.client_version()
+			
+			return 0
+		except:
+			return 3
 
 
 # attempt to identify the client using the ip and auth given by the user
 # if successful, return the version
 def identify_client(ip, user, pw):
+	# try transmission
 	try:
 		auth = (user, pw)
 		body = json.dumps({'method': 'session-get'})
@@ -272,9 +317,14 @@ def identify_client(ip, user, pw):
 		return "transmission", "Transmission " + trans_resp['arguments']['version']
 
 	except:
+		# try qbittorrent
 		try:
 			auth = {'username': user, 'password': pw}
 			test_qbittorrent = requests.post(ip + '/api/v2/auth/login', data=auth, timeout=0.5)
+			
+			# 503 text related to rtorrent. raise to proceed to rtorrent
+			if '503' in test_qbittorrent.text:
+				raise
 
 			if test_qbittorrent.status_code == 200 or test_qbittorrent.status_code == 403:
 				if test_qbittorrent.cookies:
@@ -288,6 +338,7 @@ def identify_client(ip, user, pw):
 				test_qbittorrent.raise_for_status()
 
 		except:
+			# try deluge
 			try:
 				# open session and login
 				with requests.Session() as s:
@@ -312,12 +363,22 @@ def identify_client(ip, user, pw):
 						test_deluge.raise_for_status()
 
 			except:
-				return 3
+				# try rtorrent
+				try:
+					server = xmlrpc.client.ServerProxy(ip)
+					version = server.system.client_version()
+					
+					return "rtorrent", "rTorrent " + version
+				except:
+					return 3
 
 
 # compare app version name from config. if different, return new one
 def compare_client_version(ip, user, pw, client, display_name, client_name, logger):
-	if client == "transmission":
+	failed_error = "Connection to '" + display_name + "' (" + client_name + ") failed. Please ensure the client is " \
+				   "running."
+
+	if client == 'transmission':
 		try:
 			auth = (user, pw)
 			body = json.dumps({'method': 'session-get'})
@@ -341,10 +402,9 @@ def compare_client_version(ip, user, pw, client, display_name, client_name, logg
 			else:
 				return None
 		except:
-			logger.error("Connection to '" + display_name + "' (" + client_name + ") failed. Please ensure the client "
-						 "is running.")
+			logger.error(failed_error)
 
-	elif client == "qbittorrent":
+	elif client == 'qbittorrent':
 		try:
 			auth = {'username': user, 'password': pw}
 			fetch_qbit_cookie = requests.post(ip + '/api/v2/auth/login', data=auth, timeout=0.5)
@@ -366,10 +426,9 @@ def compare_client_version(ip, user, pw, client, display_name, client_name, logg
 			else:
 				fetch_qbit_cookie.raise_for_status()
 		except:
-			logger.error("Connection to '" + display_name + "' (" + client_name + ") failed. Please ensure the client "
-						 "is running.")
+			logger.error(failed_error)
 
-	elif client == "deluge":
+	elif client == 'deluge':
 		try:
 			# open session and login
 			with requests.Session() as s:
@@ -396,5 +455,16 @@ def compare_client_version(ip, user, pw, client, display_name, client_name, logg
 					login_deluge.raise_for_status()
 
 		except:
-			logger.error("Connection to '" + display_name + "' (" + client_name + ") failed. Please ensure the client "
-						 "is running.")
+			logger.error(failed_error)
+						 
+	elif client == 'rtorrent':
+		try:
+			server = xmlrpc.client.ServerProxy(ip)
+			version = "rTorrent " + server.system.client_version()
+			
+			if version != client_name:
+				return version
+			else:
+				return None
+		except:
+			logger.error(failed_error)
