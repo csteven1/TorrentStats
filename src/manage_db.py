@@ -169,7 +169,7 @@ class ManageDB:
 
 		config = configparser.ConfigParser()
 		l = locale.getdefaultlocale()
-		start_at_login = start_menu = ""
+		start_at_login = start_menu = "0"
 		if sys.platform == "win32":
 			start_at_login = start_menu = "no"
 		port = "5656"
@@ -311,7 +311,7 @@ class ManageDB:
 								  "(date<? OR date IS NULL) ORDER BY id DESC LIMIT 1", (torrent_id[0], start_today))
 		history = fetch_history.fetchone()
 
-		if client_type == 'deluge':
+		if client_type == 'deluge' or client_type == 'rtorrent':
 			entry = ()
 			torrent['activityDate'] = time.time()
 			# at 00:00 check, the activity date will be logged as the next day when using time.time(). Subtract a
@@ -580,7 +580,7 @@ class ManageDB:
 
 	# no activity date in deluge. to find recent torrents we'll just have to check for matching hashes and
 	# changes to down/up
-	def check_deluge(self, c, ts_db, client_torrents, client_id):
+	def check_deluge_rtorrent(self, c, ts_db, client_torrents, client_id):
 		recent = []
 		for torrent in client_torrents:
 			select_search_recent = c.execute("SELECT t.id FROM torrents t INNER JOIN torrent_history th ON t.id = "
@@ -611,10 +611,10 @@ class ManageDB:
 			current_time = current_time - timedelta(seconds=90)
 		start_today = self.start_of_date(current_time)
 
-		if client_type == 'deluge':
+		if client_type == 'deluge' or client_type == 'rtorrent':
 			select_client_id = c.execute("SELECT id FROM clients WHERE section_name=?", (section_name,))
 			client_id = select_client_id.fetchone()[0]
-			recent_torrents = self.check_deluge(c, ts_db, client_torrents, client_id)
+			recent_torrents = self.check_deluge_rtorrent(c, ts_db, client_torrents, client_id)
 		else:
 			for torrent in client_torrents:
 				if torrent['activityDate'] > 0:
@@ -649,10 +649,10 @@ class ManageDB:
 			current_time = current_time - timedelta(seconds=90)
 		start_today = self.start_of_date(current_time)
 
-		if client_type == 'deluge':
+		if client_type == 'deluge' or client_type == 'rtorrent':
 			select_client_id = c.execute("SELECT id FROM clients WHERE section_name=?", (section_name,))
 			client_id = select_client_id.fetchone()[0]
-			recent_torrents = self.check_deluge(c, ts_db, client_torrents, client_id)
+			recent_torrents = self.check_deluge_rtorrent(c, ts_db, client_torrents, client_id)
 			for torrent in recent_torrents:
 				self.add_to_db(torrent, display_name, client_name, section_name, client_type, start_today, None, None,
 							   c, logger)
@@ -779,7 +779,7 @@ class ManageDB:
 			client_hashes.append(torrent[0])
 			client_status.append(torrent[1])
 			
-		# if torrent from db not found in client hashes, change status of torrent.
+		# if torrent from db not found in client hashes, change status to 'Deleted'.
 		# if there is match, check for changed status, then pop to reduce array size for next search
 		status_update = []
 		for db_hash in db_hashes:
