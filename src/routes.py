@@ -215,15 +215,14 @@ def hide_torrents():
 	hide = []
 	for i in r['list']:
 		hide.append((i,))
+		log = "User toggled torrent(id=" + str(i) + ") hidden"
+		o.print_to_log(log, o.logger)
+	
 	c.executemany("UPDATE torrents SET hidden = ((hidden | 1) - (hidden & 1)) WHERE id=?", hide)
 	conn.commit()
 	conn.close()
-	# pull in name too
-	# for torrent in hide:
-		# log = "'" + torrent['name'] + "' toggled hidden"
-		# o.print_to_log(log, o.logger)
 
-	return 'OK'
+	return jsonify(data="OK")
 
 
 @app.route('/_delete_torrents', methods=['GET', 'POST'])
@@ -234,21 +233,28 @@ def delete_torrents():
 	r = request.get_json('data')
 	delete = []
 	trackers = []
+	names = []
 	for i in r['list']:
 		delete.append((i,))
 	for torrent in delete:
-		get_tracker_id = c.execute("SELECT tracker_id FROM torrents WHERE id=?", torrent)
-		trackers.append(get_tracker_id.fetchall()[0])
+		get_tracker_id = c.execute("SELECT tracker_id, name FROM torrents WHERE id=?", torrent)
+		tracker_id = c.fetchall()
+		trackers.append((tracker_id[0][0],))
+		names.append((tracker_id[0][1],))
 
 	c.executemany("DELETE FROM torrents WHERE id=?", delete)
 	c.executemany("DELETE FROM torrent_history WHERE torrent_id=?", delete)
 	c.executemany("DELETE FROM trackers WHERE id=? AND NOT EXISTS (SELECT id FROM torrents WHERE torrents.tracker_id = "
-				  "trackers.id)", trackers)
+	              "trackers.id)", trackers)
+				  
+	for name in names:
+		log = "User deleted '" + name[0] + "' from TorrentStats"
+		o.print_to_log(log, o.logger)
 
 	conn.commit()
 	conn.close()
 
-	return 'OK'
+	return jsonify(data="OK")
 
 
 # torrents page - return full torrents list
@@ -530,21 +536,30 @@ def update_general():
 	config.read(get_config_path())
 
 	r = request.get_json('data')
-
+	
 	if r['settings'][0] == "default":
 		l = locale.getdefaultlocale()
 		port = 5656
+		
+		log = "User reset general settings. Locale: " + config['Preferences']['locale'] + "->" + l[0] + " | Port: " \
+			  + config['Preferences']['port'] + "->" + str(port)
 		config.set('Preferences', 'locale', l[0])
 		config.set('Preferences', 'port', str(port))
 		with open(get_config_path(), 'w') as config_file:
 			config.write(config_file)
+		
+		o.print_to_log(log, o.logger)
 		data = (l[0], port)
 		return jsonify(data=data)
 	else:
+		log = "User modified general settings. Locale: " + config['Preferences']['locale'] + "->" + r['settings'][0] \
+			  + " | Port: " + config['Preferences']['port'] + "->" + r['settings'][1]
 		config.set('Preferences', 'locale', r['settings'][0])
 		config.set('Preferences', 'port', r['settings'][1])
 		with open(get_config_path(), 'w') as config_file:
 			config.write(config_file)
+			
+		o.print_to_log(log, o.logger)
 
 	return jsonify(data="OK")
 
@@ -555,6 +570,10 @@ def update_win():
 	config.read(get_config_path())
 
 	r = request.get_json('data')
+	
+	log = "User modified Windows settings. Start at Login: " + config['Preferences']['start_at_login'] + "->" + \
+		  r['settings'][0] + " | Start Menu Entry: " + config['Preferences']['start_menu_shortcut'] + "->" + \
+		  r['settings'][1]
 	
 	if r['settings'][0] == 'yes':
 		win_functions.add_to_startup()
@@ -571,6 +590,8 @@ def update_win():
 
 	with open(get_config_path(), 'w') as config_file:
 		config.write(config_file)
+	
+	o.print_to_log(log, o.logger)
 
 	return jsonify(data="OK")
 
@@ -652,9 +673,13 @@ def sync_setting():
 	if config[client['section']]['sync'] == 'yes':
 		config.set(client['section'], 'sync', 'no')
 		change = "paused"
+		log = "User paused sync of '" + config[client['section']]['display_name'] + "'"
+		o.print_to_log(log, o.logger)
 	else:
 		config.set(client['section'], 'sync', 'yes')
 		change = "resumed"
+		log = "User resumed sync of '" + config[client['section']]['display_name'] + "'"
+		o.print_to_log(log, o.logger)
 	
 	with open(get_config_path(), 'w') as config_file:
 				config.write(config_file)
@@ -682,6 +707,9 @@ def client_edit():
 		if str(client_type).isdigit():
 			return jsonify(data=client_type)
 		else:
+			display_name = config[r['data'][0]]['display_name']
+			client_name = config[r['data'][0]]['client_name']
+			
 			if config[r['data'][0]]['display_name'] != r['data'][1]:
 				config.set(r['data'][0], 'display_name', r['data'][1])
 
@@ -699,6 +727,9 @@ def client_edit():
 
 			with open(get_config_path(), 'w') as config_file:
 				config.write(config_file)
+				
+			log = "User edited '" + display_name + "' (" + client_name + ")"
+			o.print_to_log(log, o.logger)
 
 			return jsonify(data="OK")
 	else:
@@ -711,7 +742,8 @@ def client_delete():
 	config.read(get_config_path())
 
 	r = request.get_json('data')
-
+	display_name = config[r['client']]['display_name']
+	client_name = config[r['client']]['client_name']
 	config.remove_section(r['client'])
 	with open(get_config_path(), 'w') as config_file:
 		config.write(config_file)
@@ -729,6 +761,9 @@ def client_delete():
 	c.executemany("DELETE FROM torrent_history WHERE torrent_id=?", to_delete)
 	c.executemany("DELETE FROM torrents WHERE id=?", to_delete)
 	c.execute("DELETE FROM clients WHERE section_name=?", (r['client'],))
+	
+	log = "User deleted '" + display_name + "' (" + client_name + ") from TorrentStats"
+	o.print_to_log(log, o.logger)
 
 	conn.commit()
 	conn.close()
@@ -800,6 +835,9 @@ def client_add_torrents():
 
 @app.route('/_refresh_torrents')
 def refresh_torrents():
+	log = "User started manual sync"
+	o.print_to_log(log, o.logger)
+	
 	o.multiple_frequent_checks(o.ts_db, o.config_file, o.scheduler, o.logger)
 	o.multiple_update_info(o.ts_db, o.config_file, o.logger)
 	
