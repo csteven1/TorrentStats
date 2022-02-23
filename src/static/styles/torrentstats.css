@@ -653,7 +653,7 @@ select {
 .date-modal-content {
 	width: 1668px;
 }
-.edit-client-modal-content, .delete-client-modal-content {
+.edit-client-modal-content, .delete-client-modal-content, .delete-torrent-modal-content {
 	width: 380px;
 }
 .add-client-modal-content {
@@ -669,7 +669,7 @@ select {
 }
 .date-modal-close, .torrent-modal-close,
 .edit-client-modal-close, .add-client-modal-close,
-.delete-client-modal-close {
+.delete-client-modal-close, .delete-torrent-modal-close {
   float: right;
   font-size: 26px;
   font-weight: bold;
@@ -677,10 +677,10 @@ select {
 
 .date-modal-close:hover, .torrent-modal-close:hover,
 .edit-client-modal-close:hover, .add-client-modal-close:hover,
-.delete-client-modal-close:hover,
+.delete-client-modal-close:hover, .delete-torrent-modal-close:hover,
 .date-modal-close:focus, .torrent-modal-close:focus,
 .edit-client-modal-close:focus, .add-client-modal-close:focus,
-.delete-client-modal-close:focus {
+.delete-client-modal-close:focus, .delete-torrent-modal-close:focus {
   color: #cccccc;
   text-decoration: none;
   cursor: pointer;
@@ -688,7 +688,7 @@ select {
 
 .torrent-modal-header, .date-modal-header,
 .edit-client-modal-header, .add-client-modal-header,
-.delete-client-modal-header {
+.delete-client-modal-header, .delete-torrent-modal-header {
   padding: 2px 16px;
   background-color: #666666;
   color: #f2f2f2;
@@ -696,7 +696,7 @@ select {
 }
 .torrent-modal-header h4, .date-modal-header h4,
 .edit-client-modal-header h4, .add-client-modal-header h4,
-.delete-client-modal-header h4 {
+.delete-client-modal-header h4, .delete-torrent-modal-header h4 {
 	margin: 8px 0;
 }
 .date-modal-header .downloaded,
