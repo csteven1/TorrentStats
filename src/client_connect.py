@@ -222,11 +222,8 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 											  'size': torrent[5], 'downloadDir': torrent[6], 'tracker': tracker, 
 											  'ratio': torrent[7], 'state': state, 'hash': torrent[9]})
 				return all_torrents
-		except ConnectionRefusedError:
-			logger.error("Connection Refused error connecting to '" + display_name + "'. (" + client_name + "). Ensure "
-						 "the IP and port are correct.")
-		except TimeoutError:
-			logger.error("Timed out. Ensure the IP and port are correct and the client is online.")
+		except:
+			return
 
 
 # attempt to connect to the client. If successful, return the version

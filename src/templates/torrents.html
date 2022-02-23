@@ -60,6 +60,18 @@
 				</div>
 			</div>
 		</div>
+		<div id="delete-torrent-modal" class="modal-background">
+			<div class="modal-content delete-torrent-modal-content">
+				<div class="delete-torrent-modal-header">
+					<span class="delete-torrent-modal-close">&times;</span>
+					<h4>Delete Torrents</h4>
+				</div>
+				<div class="modal-body">
+					<p class="delete-modal-info">These torrents will be deleted from TorrentStats. Are you sure?</p>
+					<div class="modalButtonBar"><button class="settingButton" id="cancelDeleteTorrent">Cancel</button><button class="settingButton" id="deleteConfirmTorrent">Yes</button></div>
+				</div>
+			</div>
+		</div>
 	</div>
 </div>
 <script type="text/javascript" charset="utf8" src="{{ url_for('static',filename='DataTables/datatables.min.js') }}"></script>

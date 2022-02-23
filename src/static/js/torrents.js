@@ -1,9 +1,17 @@
 //torrents page
 
 $(document).ready(function() {
+	var deleteModal = $('#delete-torrent-modal');
+	$('.delete-torrent-modal-close, #cancelDeleteTorrent').on('click', function() {
+		deleteModal.hide();
+	});
+	
 	$(window).on('click', function(e) {
 		if (e.target == torrentModal[0]) {
 			torrentModal.hide();
+		}
+		else if (e.target == deleteModal[0]) {
+			deleteModal.hide();
 		}
 	});
 	
@@ -48,7 +56,6 @@ $(document).ready(function() {
 						dataType: "json",
 						data: JSON.stringify({"list": list}),
 						success: function(msg) {
-							console.log(msg);
 						}
 					});			
 					dt.ajax.reload(null, false);								
@@ -60,24 +67,7 @@ $(document).ready(function() {
 				className: 'deleteSelected',
 				visible: false,
 				action: function (e, dt, button, config ) {
-					var confirmed = confirm("These torrents will be deleted from the database. Bandwidth statistics will no longer be accurate. Are you sure?");
-					if (confirmed == true) {
-						var selected = dt.rows( { selected: true } ).data();
-						var list = [];
-						for (var i = 0; i < selected.length; i++) {
-							list.push(selected[i][0]);
-						}
-						$.ajax ({
-							url: $SCRIPT_ROOT + '/_delete_torrents',
-							type: 'POST',
-							dataType: "json",
-							data: JSON.stringify({"list": list}),
-							success: function(msg) {
-								console.log(msg);
-							}
-						});			
-						dt.ajax.reload(null, false);
-					}
+					deleteModal.show();
 				}
 			},
 			{
@@ -183,6 +173,24 @@ $(document).ready(function() {
 			   }	
 			}
 		]
+	});
+	
+	$('#deleteConfirmTorrent').on( 'click', function() {
+		var selected = fullTable.rows( { selected: true } ).data();
+		var list = [];
+		for (var i = 0; i < selected.length; i++) {
+			list.push(selected[i][0]);
+		}
+		$.ajax ({
+			url: $SCRIPT_ROOT + '/_delete_torrents',
+			type: 'POST',
+			dataType: "json",
+			data: JSON.stringify({"list": list}),
+			success: function(data) {
+				deleteModal.hide();
+				fullTable.ajax.reload();
+			}
+		});
 	});
 	
 	$('#updateButton').on('click', function() {
