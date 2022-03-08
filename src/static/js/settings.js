@@ -236,7 +236,7 @@ $(document).ready(function() {
 		"autoWidth": false,
 		"columns": [
 			{ data: 6, render: function(data, type, row) {
-					if (data === 7) {
+					if (data === 'paused') {
 						return '<button class="syncSetting syncPaused" title="Resume syncing">&#x23F5;</button>';
 					}
 					else {
@@ -251,16 +251,22 @@ $(document).ready(function() {
 					if (data == 0) {
 						return "<div class='activeClient'><ul><li>Active</li></ul></div>";
 					}
-					else if (data == 1) {
+					else if (data == 'err_trans_auth') {
+						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>Connected to Transmission but failed authentication. Verify your username and password are correct</span></span></li></ul></div>";
+					}
+					else if (data == 'err_qbit_auth') {
 						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>Connected to qBittorrent but failed authentication. Verify your username and password are correct</span></span></li></ul></div>";
 					}
-					else if (data == 2) {
+					else if (data == 'err_del_auth') {
 						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>Connected to Deluge but failed authentication. Verify your username and password are correct</span></span></li></ul></div>";
 					}
-					else if (data == 3) {
+					else if (data == 'err_rtor_auth') {
+						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>Connected to rTorrent but failed authentication. Verify your username and password are correct</span></span></li></ul></div>";
+					}
+					else if (data == 'err_no_resp') {
 						return "<div class='offlineClient'><ul><li>Inactive <span class='offClientTooltip'>&#9432;<span class='offClientTTipText'>No response. Verify your IP address is correct and the client is running</span></span></li></ul></div>";
 					}
-					else if (data == 7) {
+					else if (data == 'paused') {
 						return "<div class='pausedClient'><ul><li>Paused</li></ul></div>";
 					}
 					else {
@@ -339,8 +345,10 @@ $(document).ready(function() {
 	});
 	
 	var sectionNameEdit = "";
+	var editRowIndex = 0;
 	$('#clients_table tbody').on( 'click', '#editClient', function () {
 		var data = clientsTable.row( $(this).parents('tr') ).data();
+		editRowIndex = clientsTable.row( $(this).parents('tr') ).index();
 
 		var user = data[4];
 		var pass = data[5];
@@ -383,44 +391,43 @@ $(document).ready(function() {
 				dataType: "json",
 				data: JSON.stringify({"data": editVerify}),
 				success: function(data) {
-					if (Number.isInteger(data.data)) {
-						if (data.data == 1) {
-							$('.editVerifText').text("Connected to qBittorrent but failed authentication. Verify your username and password are correct");
-						}
-						else if (data.data == 2) {
-							$('.editVerifText').text("Connected to Deluge but failed authentication. Verify your username and password are correct");
-						}
-						else if (data.data == 3) {
-							$('.editVerifText').text("No response from IP address. Verify your IP address is correct and the client is running");
-						}
-						else if (data.data == 4) {
-							$('.editVerifText').text("A client in TorrentStats is already using that IP address");
-						}
-						else if (data.data == 5) {
-							$('.editVerifText').text("A client in TorrentStats is already using that nickname");
-						}
-						else {
-							$('.editVerifText').text("Invalid IP address");
-						}
+					if (data.data == 'err_trans_auth') {
+						$('.editVerifText').text("Connected to Transmission but failed authentication. Verify your username and password are correct");
+					}
+					else if (data.data == 'err_qbit_auth') {
+						$('.editVerifText').text("Connected to qBittorrent but failed authentication. Verify your username and password are correct");
+					}
+					else if (data.data == 'err_del_auth') {
+						$('.editVerifText').text("Connected to Deluge but failed authentication. Verify your username and password are correct");
+					}
+					else if (data.data == 'err_rtor_auth') {
+						$('.editVerifText').text("Connected to rTorrent but failed authentication. Verify your username and password are correct");
+					}
+					else if (data.data == 'err_no_resp') {
+						$('.editVerifText').text("No response from IP address. Verify your IP address is correct and the client is running");
+					}
+					else if (data.data == 'err_name_exist') {
+						$('.editVerifText').text("A client in TorrentStats is already using that nickname");
+					}
+					else if (data.data == 'err_ip_exist') {
+						$('.editVerifText').text("A client in TorrentStats is already using that IP address");
+					}
+					else if (data.data == 'err_invalid_ip') {
+						$('.editVerifText').text("Invalid IP address");
 					}
 					else {
 						editModal.hide()
 						$('.editVerif').hide();
 						clientsTable.ajax.reload();
-						$('#notification').css("right","-20%");
-						$('.notification-header > h4').text("Client edited successfully");
-						$('.notification-body > p').text("Updating torrents");
-						$('.notification-body > p').hide();
-						$('#notification').animate({right: 30});
-						setTimeout(hideNotif, 3000);
 						$.ajax ({
 							url: $SCRIPT_ROOT + '/_refresh_torrents',
 							type: 'GET',
 							dataType: "json",
 							success: function(data) {
-								$('#editClient').addClass('savedButton');
-								$('#editClient').text("✔");
-								setTimeout(saved, 1000, '#editClient', 'savedButton', 'Edit');
+								var cell = '#clients_table tr:nth-child(' + (editRowIndex+1).toString() + ') td:nth-child(6) button'
+								$(cell).addClass('savedButton');
+								$(cell).text("✔");
+								setTimeout(saved, 1500, cell, 'savedButton', 'Edit');
 							}
 						});
 					}
@@ -477,20 +484,26 @@ $(document).ready(function() {
 				dataType: "json",
 				data: JSON.stringify({"data": addVerify}),
 				success: function(data) {
-					if (Number.isInteger(data.data)) {
-						if (data.data == 1) {
+					if (typeof(data.data) == 'string') {
+						if (data.data == 'err_trans_auth') {
+							$('.addVerifText').text("Connected to Transmission but failed authentication. Verify your username and password are correct");
+						}
+						else if (data.data == 'err_qbit_auth') {
 							$('.addVerifText').text("Connected to qBittorrent but failed authentication. Verify your username and password are correct");
 						}
-						else if (data.data == 2) {
+						else if (data.data == 'err_del_auth') {
 							$('.addVerifText').text("Connected to Deluge but failed authentication. Verify your username and password are correct");
 						}
-						else if (data.data == 3) {
+						else if (data.data == 'err_rtor_auth') {
+							$('.addVerifText').text("Found rTorrent but failed to connect. Verify you are connecting to the RPC port and that your username and password are correct");
+						}
+						else if (data.data == 'err_no_resp') {
 							$('.addVerifText').text("No response from IP address. Verify your IP address is correct and the client is running");
 						}
-						else if (data.data == 4) {
+						else if (data.data == 'err_ip_exist') {
 							$('.addVerifText').text("A client in TorrentStats is already connected to that IP address");
 						}
-						else if (data.data == 6) {
+						else if (data.data == 'err_invalid_ip') {
 							$('.addVerifText').text("Invalid IP address");
 						}
 					}
@@ -501,6 +514,7 @@ $(document).ready(function() {
 							$('#appName').text(data.data[1]);
 							clientName = data.data[1];
 							clientType = data.data[2];
+							ip = data.data[3];	// IP might have been adjusted to work so use returned value
 							$('.addPage2').fadeIn(300);
 							$('.addVerif').hide();
 						});
@@ -527,7 +541,7 @@ $(document).ready(function() {
 			dataType: "json",
 			data: JSON.stringify({"data": addSave}),
 			success: function(data) {
-				if (data.data == 5) {
+				if (data.data == 'err_name_exist') {
 					$('.addVerifText2').text("A client in TorrentStats is already using that nickname");
 				}
 				else {

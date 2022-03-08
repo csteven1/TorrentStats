@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 from operator import itemgetter
+from urllib.parse import urlparse
 from src import app
 from src import client_connect, manage_db
 import sqlite3
@@ -656,9 +657,20 @@ def clients_table():
 				active_client = client_connect.test_client(config[section]['ip'], config[section]['user'],
 														   config[section]['pass'], config[section]['client_type'])
 			else:
-				active_client = 7
+				active_client = 'paused'
+				
+			ip = config[section]['ip']
+			
+			#rTorrent with auth has auth in IP line. Remove these for display in table
+			if config[section]['client_type'] == 'rtorrent':
+				if config[section]['user']:
+					parsed = urlparse(ip)
+					trim_index = parsed.netloc.find('@')
+					netloc = parsed.netloc[(trim_index+1):]
+					ip = parsed.scheme + '://' + netloc
+			
 			clients.append((section, config[section]['display_name'], config[section]['client_name'],
-							config[section]['ip'], config[section]['user'], config[section]['pass'], active_client))
+							ip, config[section]['user'], config[section]['pass'], active_client))
 
 	return jsonify(data=clients)
 	
@@ -693,20 +705,22 @@ def client_edit():
 
 	r = request.get_json('data')
 
+	client_ips = []
+	# compare names of all except current. if one is the same, return error
 	for section in config:
 		if 'Client' in section:
 			if r['data'][0] != section:
-				if r['data'][2] == config[section]['ip']:
-					return jsonify(data=4)
+				client_ips.append(config[section]['ip'])
 				if r['data'][1] == config[section]['display_name']:
-					return jsonify(data=5)
-
+					return jsonify(data='err_name_exist')
+				
 	if r['data'][2]:
-		client_type = client_connect.identify_client(r['data'][2], r['data'][3], r['data'][4])
+		client_type = client_connect.identify_client(r['data'][2], r['data'][3], r['data'][4], client_ips, o.logger)
 
-		if str(client_type).isdigit():
+		if isinstance(client_type, str):
 			return jsonify(data=client_type)
 		else:
+			ip = client_type[0]
 			display_name = config[r['data'][0]]['display_name']
 			client_name = config[r['data'][0]]['client_name']
 			
@@ -721,7 +735,7 @@ def client_edit():
 				conn.commit()
 				conn.close()
 
-			config.set(r['data'][0], 'ip', r['data'][2])
+			config.set(r['data'][0], 'ip', ip)
 			config.set(r['data'][0], 'user', r['data'][3])
 			config.set(r['data'][0], 'pass', r['data'][4])
 
@@ -733,7 +747,7 @@ def client_edit():
 
 			return jsonify(data="OK")
 	else:
-		return jsonify(data=6)
+		return jsonify(data='err_invalid_ip')
 
 
 @app.route('/_client_delete', methods=['GET', 'POST'])
@@ -779,19 +793,19 @@ def client_add_verify():
 	r = request.get_json('data')
 
 	section_num = 1
+	client_ips = []
 	for section in config:
 		if 'Client' in section:
 			section_num = int(section.rpartition(".")[2]) + 1
-			if r['data'][0] == config[section]['ip']:
-				return jsonify(data=4)
+			client_ips.append(config[section]['ip'])
 
 	if r['data'][0]:
-		client_type = client_connect.identify_client(r['data'][0], r['data'][1], r['data'][2])
+		client_type = client_connect.identify_client(r['data'][0], r['data'][1], r['data'][2], client_ips, o.logger)
 
-		if str(client_type).isdigit():
+		if isinstance(client_type, str):
 			return jsonify(data=client_type)
 		else:
-			client_info = (str(section_num) + ": " + client_type[1], client_type[1], client_type[0])
+			client_info = (str(section_num) + ": " + client_type[2], client_type[2], client_type[1], client_type[0])
 			return jsonify(data=client_info)
 
 	return "OK"
@@ -809,7 +823,7 @@ def client_add():
 		if 'Client' in section:
 			section_num = int(section.rpartition(".")[2]) + 1
 			if r['data'][0] == config[section]['display_name']:
-				return jsonify(data=5)
+				return jsonify(data='err_name_exist')
 
 	client_section = 'Client.' + str(section_num)
 

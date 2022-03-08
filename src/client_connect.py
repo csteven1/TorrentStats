@@ -104,6 +104,9 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 						torrent['hash'] = torrent.pop('hashString')
 
 					return all_torrents['arguments']['torrents']
+				elif resp.status_code == 401:
+					logger.error("Authentication error connecting to '" + display_name + "' (" + client_name + "). "
+								 "Please ensure the username and password are correct.")
 				else:
 					raise (resp.raise_for_status())
 
@@ -197,8 +200,8 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 			return
 			
 	elif client == "rtorrent":
-		server = xmlrpc.client.ServerProxy(ip)
 		try:
+			server = xmlrpc.client.ServerProxy(ip)
 			torrents = server.d.multicall2("", "main", "d.name=", "d.bytes_done=", "d.up.total=", 
 										   "d.timestamp.finished=", "d.load_date=", "d.size_bytes=", "d.directory=", 
 										   "d.ratio=", "d.state=", "d.hash=")
@@ -222,24 +225,32 @@ def get_torrents(ip, user, pw, client, display_name, client_name, logger):
 											  'size': torrent[5], 'downloadDir': torrent[6], 'tracker': tracker, 
 											  'ratio': torrent[7], 'state': state, 'hash': torrent[9]})
 				return all_torrents
+		
+		except xmlrpc.client.ProtocolError:
+			logger.error("Authentication error connecting to '" + display_name + "' (" + client_name + "). Please "
+						 "ensure the username and password are correct.")
 		except:
 			return
 
 
-# attempt to connect to the client. If successful, return the version
+# attempt to connect to the client
 def test_client(ip, user, pw, client):
 	if client == "transmission":
 		try:
-			test_transmission = requests.get(ip + '/transmission/rpc/', timeout=0.5)
+			auth = (user, pw)
+			test_transmission = requests.get(ip + '/transmission/rpc/', auth=auth, timeout=0.5)
+			
 			if test_transmission.status_code == 409 or test_transmission.status_code == 200:
 				if test_transmission.headers['X-Transmission-Session-Id']:
 					return 0
 				else:
-					return 3
+					return 'err_no_resp'
+			elif test_transmission.status_code == 401:
+				return 'err_trans_auth'
 			else:
-				return 3
+				return 'err_no_resp'
 		except:
-			return 3
+			return 'err_no_resp'
 
 	elif client == "qbittorrent":
 		try:
@@ -250,11 +261,11 @@ def test_client(ip, user, pw, client):
 				if fetch_qbit_cookie.cookies:
 					return 0
 				else:
-					return 1
+					return 'err_qbit_auth'
 			else:
 				fetch_qbit_cookie.raise_for_status()
 		except:
-			return 3
+			return 'err_no_resp'
 
 	elif client == "deluge":
 		try:
@@ -267,7 +278,7 @@ def test_client(ip, user, pw, client):
 				if login_deluge.status_code == 200:
 					confirm = login_deluge.json()
 					if not confirm['result']:
-						return 2
+						return 'err_del_auth'
 					else:
 						# get deluge version
 						version_data = '{"method": "daemon.get_version", "params": [], "id": 1}'
@@ -278,96 +289,121 @@ def test_client(ip, user, pw, client):
 					login_deluge.raise_for_status()
 
 		except:
-			return 3
+			return 'err_no_resp'
 	
 	elif client == "rtorrent":
-		server = xmlrpc.client.ServerProxy(ip)
 		try:
+			server = xmlrpc.client.ServerProxy(ip)
 			version = server.system.client_version()
 			
 			return 0
+		except xmlrpc.client.ProtocolError:
+			return "err_rtor_auth"
 		except:
-			return 3
+			return 'err_no_resp'
 
 
 # attempt to identify the client using the ip and auth given by the user
 # if successful, return the version
-def identify_client(ip, user, pw):
-	# try transmission
-	try:
-		auth = (user, pw)
-		body = json.dumps({'method': 'session-get'})
-		transmission_session_id = None
-		trans_resp = None
+def identify_client(ip_orig, user, pw, client_ips, logger):
+	ip = ip_orig
+	mod_ip = ('', 'http://','https://')
 
-		for x in range(2):
-			headers = {'X-Transmission-Session-Id': transmission_session_id}
-			resp = requests.post(ip + '/transmission/rpc/', body, headers=headers, auth=auth, timeout=0.5)
-			if resp.status_code == 409:
-				transmission_session_id = resp.headers['X-Transmission-Session-Id']
-			elif resp.status_code == 200:
-				trans_resp = resp.json()
-				break
-			else:
-				raise (resp.raise_for_status())
+	for test_ip in range(3):
+		ip = ip_orig
+		ip = mod_ip[test_ip]+ip
+		
+		# return error if IP matches any existing IP
+		for client_ip in client_ips:
+			if client_ip == ip:
+				return "err_ip_exist"
 
-		return "transmission", "Transmission " + trans_resp['arguments']['version']
-
-	except:
-		# try qbittorrent
 		try:
-			auth = {'username': user, 'password': pw}
-			test_qbittorrent = requests.post(ip + '/api/v2/auth/login', data=auth, timeout=0.5)
-			
-			# 503 text related to rtorrent. raise to proceed to rtorrent
-			if '503' in test_qbittorrent.text:
-				raise
-
-			if test_qbittorrent.status_code == 200 or test_qbittorrent.status_code == 403:
-				if test_qbittorrent.cookies:
-					qbit_cookie = {'SID': test_qbittorrent.cookies['SID']}
-					qbit_version = requests.post(ip + '/api/v2/app/version', cookies=qbit_cookie, timeout=0.5)
-
-					return "qbittorrent", "qBittorrent " + qbit_version.text
-				else:
-					return 1
-			else:
-				test_qbittorrent.raise_for_status()
-
-		except:
-			# try deluge
+			# try transmission
 			try:
-				# open session and login
-				with requests.Session() as s:
-					header = {'Accept': 'application/json', 'Content-Type': 'application/json'}
-					login_data = '{"method": "auth.login", "params": ["' + str(pw) + '"], "id": 1}'
-					test_deluge = s.post(ip + '/json', data=login_data, headers=header, timeout=0.5)
+				auth = (user, pw)
+				body = json.dumps({'method': 'session-get'})
+				transmission_session_id = None
+				trans_resp = None
 
-					if test_deluge.status_code == 200:
-						confirm = test_deluge.json()
-						if not confirm['result']:
-							return 2
-						else:
-							# get deluge version
-							version_data = '{"method": "daemon.get_version", "params": [], "id": 1}'
-							resp = s.post(ip + '/json', data=version_data, headers=header, timeout=0.5)
-							deluge_version = resp.json()
-							if deluge_version['result']:
-								return "deluge", "Deluge " + deluge_version['result']
-							else:
-								return 2
+				for x in range(2):
+					headers = {'X-Transmission-Session-Id': transmission_session_id}
+					resp = requests.post(ip + '/transmission/rpc/', body, headers=headers, auth=auth, timeout=0.5)
+					
+					if resp.status_code == 409:
+						transmission_session_id = resp.headers['X-Transmission-Session-Id']
+					elif resp.status_code == 200:
+						trans_resp = resp.json()
+						break
+					elif resp.headers['Server'] == 'Transmission' and resp.status_code == 401:
+						return "err_trans_auth"
 					else:
-						test_deluge.raise_for_status()
+						raise (resp.raise_for_status())
+
+				return (ip, "transmission", "Transmission " + trans_resp['arguments']['version'])
 
 			except:
-				# try rtorrent
+				# try qbittorrent
 				try:
-					server = xmlrpc.client.ServerProxy(ip)
-					version = server.system.client_version()
+					auth = {'username': user, 'password': pw}
+					test_qbittorrent = requests.post(ip + '/api/v2/auth/login', data=auth, timeout=0.5)
 					
-					return "rtorrent", "rTorrent " + version
+					# 503 text related to rtorrent. raise to proceed to rtorrent
+					if '503' in test_qbittorrent.text:
+						raise
+
+					if test_qbittorrent.status_code == 200 or test_qbittorrent.status_code == 403:
+						if test_qbittorrent.cookies:
+							qbit_cookie = {'SID': test_qbittorrent.cookies['SID']}
+							qbit_version = requests.post(ip + '/api/v2/app/version', cookies=qbit_cookie, timeout=0.5)
+
+							return (ip, "qbittorrent", "qBittorrent " + qbit_version.text)
+						else:
+							return "err_qbit_auth"
+					else:
+						test_qbittorrent.raise_for_status()
+
 				except:
-					return 3
+					# try deluge
+					try:
+						# open session and login
+						with requests.Session() as s:
+							header = {'Accept': 'application/json', 'Content-Type': 'application/json'}
+							login_data = '{"method": "auth.login", "params": ["' + str(pw) + '"], "id": 1}'
+							test_deluge = s.post(ip + '/json', data=login_data, headers=header, timeout=0.5)
+
+							if test_deluge.status_code == 200:
+								confirm = test_deluge.json()
+								if not confirm['result']:
+									return "err_del_auth"
+								else:
+									# get deluge version
+									version_data = '{"method": "daemon.get_version", "params": [], "id": 1}'
+									resp = s.post(ip + '/json', data=version_data, headers=header, timeout=0.5)
+									deluge_version = resp.json()
+									if deluge_version['result']:
+										return (ip, "deluge", "Deluge " + deluge_version['result'])
+									else:
+										return "err_del_auth"
+							else:
+								test_deluge.raise_for_status()
+
+					except:
+						# try rtorrent
+						if user:
+							parsed = urlparse(ip)
+							ip = parsed._replace(netloc=user + ":" + pw + "@" + parsed.netloc).geturl()
+							
+						server = xmlrpc.client.ServerProxy(ip)
+						version = server.system.client_version()
+						
+						return (ip, "rtorrent", "rTorrent " + version)
+							
+		except xmlrpc.client.ProtocolError:
+			return "err_rtor_auth"
+		except:
+			pass
+	return "err_no_resp"
 
 
 # compare app version name from config. if different, return new one
@@ -463,5 +499,9 @@ def compare_client_version(ip, user, pw, client, display_name, client_name, logg
 				return version
 			else:
 				return None
+		
+		except xmlrpc.client.ProtocolError:
+			logger.error("Authentication error connecting to '" + display_name + "' (" + client_name + "). Please "
+						 "ensure the username and password are correct.")
 		except:
 			logger.error(failed_error)
