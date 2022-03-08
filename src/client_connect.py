@@ -261,7 +261,7 @@ def test_client(ip, user, pw, client):
 				if fetch_qbit_cookie.cookies:
 					return 0
 				else:
-					return 'err_no_resp'
+					return 'err_qbit_auth'
 			else:
 				fetch_qbit_cookie.raise_for_status()
 		except:
